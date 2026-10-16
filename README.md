@@ -82,6 +82,10 @@ python figures/final_render_scripts/fig4_infer.py --xyz  # Figure 4 (needs torch
 
 See `run_scripts/服务器执行手册_R2bR3R4.md` for the full multi-step execution manual used for the production runs.
 
+## License
+
+Released under the [MIT License](LICENSE). This covers the source code in this repository only; the tmQM dataset is not distributed here and remains subject to its own terms.
+
 ## Citation
 
 If you use this code, please cite the manuscript above (full bibliographic details will be added upon publication).
