@@ -1,0 +1,17 @@
+# tmQM dual-GAT — inference stack (pinned)
+# Used for: deployment scorer, ETKDG success-rate statistics (74.4% of valid TM
+# complexes), and the CPU inference benchmark in the Supporting Information.
+# NOTE: RDKit version drift between this stack and environment_train.yml affects
+# ETKDG success rates and XAI top-5 statistics; keep the two stacks separate.
+name: tmqm-infer
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12.13
+  - numpy
+  - pandas
+  - tqdm
+  - rdkit=2026.03.3
+  - pip
+  - pip:
+      - torch==2.12.1+cpu     # from https://download.pytorch.org/whl/cpu

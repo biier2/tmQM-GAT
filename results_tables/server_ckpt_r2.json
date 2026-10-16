@@ -1,0 +1,69 @@
+{
+  "N_total": 13547,
+  "N_overlap": 725,
+  "N_nonoverlap": 12822,
+  "gap": {
+    "full_SMILES": 0.8789,
+    "full_3D": 0.8291,
+    "nonoverlap_SMILES": 0.8738,
+    "nonoverlap_3D": 0.8211,
+    "overlap_SMILES": 0.9454,
+    "overlap_3D": 0.9329
+  },
+  "homo": {
+    "full_SMILES": 0.9634,
+    "full_3D": 0.9466,
+    "nonoverlap_SMILES": 0.9603,
+    "nonoverlap_3D": 0.9411,
+    "overlap_SMILES": 0.9865,
+    "overlap_3D": 0.9885
+  },
+  "lumo": {
+    "full_SMILES": 0.9586,
+    "full_3D": 0.9383,
+    "nonoverlap_SMILES": 0.9557,
+    "nonoverlap_3D": 0.9321,
+    "overlap_SMILES": 0.9812,
+    "overlap_3D": 0.9874
+  },
+  "dipole": {
+    "full_SMILES": 0.8136,
+    "full_3D": 0.6953,
+    "nonoverlap_SMILES": 0.8124,
+    "nonoverlap_3D": 0.6894,
+    "overlap_SMILES": 0.8285,
+    "overlap_3D": 0.7754
+  },
+  "metal_charge": {
+    "full_SMILES": 0.9628,
+    "full_3D": 0.9763,
+    "nonoverlap_SMILES": 0.9628,
+    "nonoverlap_3D": 0.9762,
+    "overlap_SMILES": 0.9623,
+    "overlap_3D": 0.9795
+  },
+  "E_elec": {
+    "full_SMILES": 0.9735,
+    "full_3D": 0.9671,
+    "nonoverlap_SMILES": 0.9729,
+    "nonoverlap_3D": 0.9662,
+    "overlap_SMILES": 0.982,
+    "overlap_3D": 0.9782
+  },
+  "E_disp": {
+    "full_SMILES": 0.9597,
+    "full_3D": 0.9299,
+    "nonoverlap_SMILES": 0.9592,
+    "nonoverlap_3D": 0.929,
+    "overlap_SMILES": 0.9655,
+    "overlap_3D": 0.9406
+  },
+  "polarizability": {
+    "full_SMILES": 0.9702,
+    "full_3D": 0.9417,
+    "nonoverlap_SMILES": 0.9699,
+    "nonoverlap_3D": 0.9408,
+    "overlap_SMILES": 0.9732,
+    "overlap_3D": 0.9524
+  }
+}

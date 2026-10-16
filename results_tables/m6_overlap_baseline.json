@@ -1,0 +1,10 @@
+{
+ "N_xai": 20000,
+ "N_perturb": 2000,
+ "mean_atoms": 34.9385,
+ "baseline_rate": 0.16569954447886492,
+ "observed_rate": 0.181,
+ "z": 4.559741547934592,
+ "p": 2.5608307681057596e-06,
+ "caveat_rdkit": "\u5f53\u524d RDKit 2026.03.3 \u91cd\u5efa; notebook \u539f\u73af\u5883\u82e5\u4e3a 2024.03 \u5219\u4e2a\u522b SMILES \u89e3\u6790\u5dee\u5f02\u53ef\u5ffd\u7565"
+}

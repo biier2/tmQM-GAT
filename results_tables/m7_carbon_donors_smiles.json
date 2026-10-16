@@ -1,0 +1,73 @@
+{
+ "N_attention": 20000,
+ "N_perturb": 2000,
+ "sanity_donor_pct": 22.2,
+ "sanity_C_pct": 71.42,
+ "sanity_metal_pct": 4.59,
+ "n_mc_complexes": 10515,
+ "mc_carbon_counts": {
+  "carbonyl_C": 7892,
+  "other_MC": 32468,
+  "nhc_C": 235
+ },
+ "top5_donor_classic_pct": 22.2,
+ "top5_donor_withMC_pct": 27.99,
+ "top5_MC_split_pct": {
+  "carbonyl": 1.63,
+  "nhc": 0.03,
+  "other": 4.14
+ },
+ "backbone_C_pct": 65.62,
+ "layerwise_donor_classic": [
+  19.76,
+  19.76,
+  19.76,
+  19.76,
+  19.76
+ ],
+ "layerwise_donor_withMC": [
+  26.8,
+  26.8,
+  26.8,
+  26.8,
+  26.8
+ ],
+ "perturb_donor_frac": {
+  "gap": {
+   "classic": 0.265,
+   "with_MC": 0.336
+  },
+  "homo": {
+   "classic": 0.442,
+   "with_MC": 0.562
+  },
+  "lumo": {
+   "classic": 0.42,
+   "with_MC": 0.54
+  },
+  "dipole": {
+   "classic": 0.271,
+   "with_MC": 0.341
+  },
+  "metal_charge": {
+   "classic": 0.258,
+   "with_MC": 0.321
+  },
+  "E_elec": {
+   "classic": 0.147,
+   "with_MC": 0.197
+  },
+  "E_disp": {
+   "classic": 0.228,
+   "with_MC": 0.331
+  },
+  "polarizability": {
+   "classic": 0.204,
+   "with_MC": 0.295
+  }
+ },
+ "overlap_mean": 0.1922,
+ "chance_5N_mean": 0.1657,
+ "paired_z": 5.67,
+ "paired_p": 1.42e-08
+}

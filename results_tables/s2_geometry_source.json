@@ -1,0 +1,73 @@
+{
+ "n_sampled": 500,
+ "n_candidates": 900,
+ "etkdg_success_rate_pct": 71.53,
+ "bo_hit_rate_pct": 42.77,
+ "model": "xyz_best_weighted.pt (single-model, deployment checkpoint)",
+ "per_property": {
+  "gap": {
+   "r2_train_geom": 0.8808,
+   "r2_etkdg_geom": 0.8722,
+   "mae_train_geom": 0.0088,
+   "mae_etkdg_geom": 0.0091,
+   "spearman_cross_geom": 0.9984,
+   "pearson_cross_geom": 0.9987
+  },
+  "homo": {
+   "r2_train_geom": 0.9721,
+   "r2_etkdg_geom": 0.9709,
+   "mae_train_geom": 0.0069,
+   "mae_etkdg_geom": 0.007,
+   "spearman_cross_geom": 0.9987,
+   "pearson_cross_geom": 0.9996
+  },
+  "lumo": {
+   "r2_train_geom": 0.9728,
+   "r2_etkdg_geom": 0.9719,
+   "mae_train_geom": 0.0071,
+   "mae_etkdg_geom": 0.0071,
+   "spearman_cross_geom": 0.9986,
+   "pearson_cross_geom": 0.9994
+  },
+  "dipole": {
+   "r2_train_geom": 0.8387,
+   "r2_etkdg_geom": 0.8273,
+   "mae_train_geom": 1.0586,
+   "mae_etkdg_geom": 1.1001,
+   "spearman_cross_geom": 0.9977,
+   "pearson_cross_geom": 0.9973
+  },
+  "metal_charge": {
+   "r2_train_geom": 0.9239,
+   "r2_etkdg_geom": 0.9245,
+   "mae_train_geom": 0.1801,
+   "mae_etkdg_geom": 0.1785,
+   "spearman_cross_geom": 0.9996,
+   "pearson_cross_geom": 0.9997
+  },
+  "E_elec": {
+   "r2_train_geom": 0.9825,
+   "r2_etkdg_geom": 0.9816,
+   "mae_train_geom": 161.3895,
+   "mae_etkdg_geom": 165.5503,
+   "spearman_cross_geom": 0.9996,
+   "pearson_cross_geom": 0.9999
+  },
+  "E_disp": {
+   "r2_train_geom": 0.9498,
+   "r2_etkdg_geom": 0.9469,
+   "mae_train_geom": 0.0105,
+   "mae_etkdg_geom": 0.0107,
+   "spearman_cross_geom": 0.9996,
+   "pearson_cross_geom": 0.9996
+  },
+  "polarizability": {
+   "r2_train_geom": 0.9623,
+   "r2_etkdg_geom": 0.9605,
+   "mae_train_geom": 20.2969,
+   "mae_etkdg_geom": 20.6772,
+   "spearman_cross_geom": 0.9995,
+   "pearson_cross_geom": 0.9997
+  }
+ }
+}

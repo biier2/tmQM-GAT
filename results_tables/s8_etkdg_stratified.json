@@ -1,0 +1,315 @@
+{
+ "n_valid": 100715,
+ "n_success": 74913,
+ "success_rate_pct": 74.38,
+ "by_group_cn": {
+  "3d-CN1": {
+   "N": 2,
+   "success": 2,
+   "embed_failed": 0,
+   "mmff_crashed": 0,
+   "rate_pct": 100.0
+  },
+  "3d-CN2": {
+   "N": 573,
+   "success": 538,
+   "embed_failed": 35,
+   "mmff_crashed": 0,
+   "rate_pct": 93.9
+  },
+  "3d-CN3": {
+   "N": 1330,
+   "success": 1226,
+   "embed_failed": 103,
+   "mmff_crashed": 1,
+   "rate_pct": 92.2
+  },
+  "3d-CN4": {
+   "N": 13825,
+   "success": 12904,
+   "embed_failed": 892,
+   "mmff_crashed": 29,
+   "rate_pct": 93.3
+  },
+  "3d-CN5": {
+   "N": 5111,
+   "success": 4766,
+   "embed_failed": 333,
+   "mmff_crashed": 12,
+   "rate_pct": 93.2
+  },
+  "3d-CN6": {
+   "N": 11329,
+   "success": 10296,
+   "embed_failed": 1000,
+   "mmff_crashed": 33,
+   "rate_pct": 90.9
+  },
+  "3d-CN7": {
+   "N": 6041,
+   "success": 507,
+   "embed_failed": 1985,
+   "mmff_crashed": 3549,
+   "rate_pct": 8.4
+  },
+  "4d-CN0": {
+   "N": 1,
+   "success": 1,
+   "embed_failed": 0,
+   "mmff_crashed": 0,
+   "rate_pct": 100.0
+  },
+  "4d-CN1": {
+   "N": 7,
+   "success": 7,
+   "embed_failed": 0,
+   "mmff_crashed": 0,
+   "rate_pct": 100.0
+  },
+  "4d-CN2": {
+   "N": 735,
+   "success": 724,
+   "embed_failed": 11,
+   "mmff_crashed": 0,
+   "rate_pct": 98.5
+  },
+  "4d-CN3": {
+   "N": 557,
+   "success": 490,
+   "embed_failed": 65,
+   "mmff_crashed": 2,
+   "rate_pct": 88.0
+  },
+  "4d-CN4": {
+   "N": 11808,
+   "success": 11185,
+   "embed_failed": 617,
+   "mmff_crashed": 6,
+   "rate_pct": 94.7
+  },
+  "4d-CN5": {
+   "N": 3028,
+   "success": 2510,
+   "embed_failed": 495,
+   "mmff_crashed": 23,
+   "rate_pct": 82.9
+  },
+  "4d-CN6": {
+   "N": 9123,
+   "success": 7391,
+   "embed_failed": 1598,
+   "mmff_crashed": 134,
+   "rate_pct": 81.0
+  },
+  "4d-CN7": {
+   "N": 9682,
+   "success": 951,
+   "embed_failed": 3418,
+   "mmff_crashed": 5313,
+   "rate_pct": 9.8
+  },
+  "5d-CN0": {
+   "N": 1,
+   "success": 1,
+   "embed_failed": 0,
+   "mmff_crashed": 0,
+   "rate_pct": 100.0
+  },
+  "5d-CN1": {
+   "N": 1,
+   "success": 1,
+   "embed_failed": 0,
+   "mmff_crashed": 0,
+   "rate_pct": 100.0
+  },
+  "5d-CN2": {
+   "N": 3425,
+   "success": 3356,
+   "embed_failed": 67,
+   "mmff_crashed": 2,
+   "rate_pct": 98.0
+  },
+  "5d-CN3": {
+   "N": 441,
+   "success": 388,
+   "embed_failed": 44,
+   "mmff_crashed": 9,
+   "rate_pct": 88.0
+  },
+  "5d-CN4": {
+   "N": 8658,
+   "success": 8061,
+   "embed_failed": 595,
+   "mmff_crashed": 2,
+   "rate_pct": 93.1
+  },
+  "5d-CN5": {
+   "N": 1835,
+   "success": 1510,
+   "embed_failed": 311,
+   "mmff_crashed": 14,
+   "rate_pct": 82.3
+  },
+  "5d-CN6": {
+   "N": 8992,
+   "success": 7647,
+   "embed_failed": 1327,
+   "mmff_crashed": 18,
+   "rate_pct": 85.0
+  },
+  "5d-CN7": {
+   "N": 4210,
+   "success": 451,
+   "embed_failed": 2665,
+   "mmff_crashed": 1094,
+   "rate_pct": 10.7
+  }
+ },
+ "by_metal": {
+  "Co": {
+   "N": 3450,
+   "success": 2691,
+   "rate_pct": 78.0
+  },
+  "Cr": {
+   "N": 2033,
+   "success": 736,
+   "rate_pct": 36.2
+  },
+  "Cu": {
+   "N": 3528,
+   "success": 3286,
+   "rate_pct": 93.1
+  },
+  "Fe": {
+   "N": 5045,
+   "success": 3307,
+   "rate_pct": 65.6
+  },
+  "Mn": {
+   "N": 2112,
+   "success": 1454,
+   "rate_pct": 68.8
+  },
+  "Ni": {
+   "N": 10030,
+   "success": 9014,
+   "rate_pct": 89.9
+  },
+  "Sc": {
+   "N": 459,
+   "success": 269,
+   "rate_pct": 58.6
+  },
+  "Ti": {
+   "N": 3131,
+   "success": 1418,
+   "rate_pct": 45.3
+  },
+  "V": {
+   "N": 1380,
+   "success": 1214,
+   "rate_pct": 88.0
+  },
+  "Zn": {
+   "N": 7043,
+   "success": 6850,
+   "rate_pct": 97.3
+  },
+  "Ag": {
+   "N": 1668,
+   "success": 1548,
+   "rate_pct": 92.8
+  },
+  "Cd": {
+   "N": 1643,
+   "success": 1600,
+   "rate_pct": 97.4
+  },
+  "Mo": {
+   "N": 3868,
+   "success": 2413,
+   "rate_pct": 62.4
+  },
+  "Nb": {
+   "N": 516,
+   "success": 237,
+   "rate_pct": 45.9
+  },
+  "Pd": {
+   "N": 10161,
+   "success": 9699,
+   "rate_pct": 95.5
+  },
+  "Rh": {
+   "N": 4278,
+   "success": 1941,
+   "rate_pct": 45.4
+  },
+  "Ru": {
+   "N": 9067,
+   "success": 4384,
+   "rate_pct": 48.4
+  },
+  "Tc": {
+   "N": 283,
+   "success": 255,
+   "rate_pct": 90.1
+  },
+  "Y": {
+   "N": 817,
+   "success": 429,
+   "rate_pct": 52.5
+  },
+  "Zr": {
+   "N": 2640,
+   "success": 753,
+   "rate_pct": 28.5
+  },
+  "Au": {
+   "N": 4099,
+   "success": 3994,
+   "rate_pct": 97.4
+  },
+  "Hf": {
+   "N": 572,
+   "success": 267,
+   "rate_pct": 46.7
+  },
+  "Hg": {
+   "N": 1148,
+   "success": 960,
+   "rate_pct": 83.6
+  },
+  "Ir": {
+   "N": 4695,
+   "success": 2469,
+   "rate_pct": 52.6
+  },
+  "Os": {
+   "N": 1224,
+   "success": 759,
+   "rate_pct": 62.0
+  },
+  "Pt": {
+   "N": 7853,
+   "success": 7274,
+   "rate_pct": 92.6
+  },
+  "Re": {
+   "N": 4033,
+   "success": 3340,
+   "rate_pct": 82.8
+  },
+  "Ta": {
+   "N": 740,
+   "success": 392,
+   "rate_pct": 53.0
+  },
+  "W": {
+   "N": 3199,
+   "success": 1960,
+   "rate_pct": 61.3
+  }
+ }
+}

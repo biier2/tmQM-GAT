@@ -1,0 +1,18 @@
+{
+  "success_rate_pct": 69.04303442938613,
+  "n_success": 74940,
+  "n_total": 108541,
+  "fail_breakdown": {
+    "invalid_smiles": 7692,
+    "parse_failed": 18,
+    "embed_failed": 15637,
+    "mmff_crashed": 10254
+  },
+  "mmff_metal_coverage": "None \u2014 metals fixed, ligands only",
+  "ml_bond_mae": 3.0305281879547996,
+  "ml_bond_rmse": 3.813158366187769,
+  "ml_bond_bias": 2.8675970598693232,
+  "ml_bond_within_01A": 0.01642485628250753,
+  "ml_bond_within_02A": 0.04133588831097728,
+  "ml_bond_n_samples": 501
+}

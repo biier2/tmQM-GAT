@@ -1,0 +1,29 @@
+{
+ "env": {
+  "torch": "2.12.1+cpu",
+  "rdkit": "2026.03.3",
+  "python": "3.12.13",
+  "os": "Windows-11-10.0.28000-SP0",
+  "cpu": "Intel64 Family 6 Model 191 Stepping 2, GenuineIntel",
+  "threads": 16
+ },
+ "params": {
+  "smiles_gat": 1309232,
+  "3d_gat": 1311404
+ },
+ "molecule": {
+  "name": "Ni-cat1",
+  "atoms_sm": 37
+ },
+ "latency_ms": {
+  "smiles_gat_batch1": 3.417,
+  "3d_gat_batch1": 3.075
+ },
+ "throughput": {
+  "smiles_gat_batch128_ms": 69.72,
+  "complexes_per_sec_batch128": 1835.9,
+  "3d_gat_batch128_ms": 67.52,
+  "3d_complexes_per_sec_batch128": 1895.7
+ },
+ "etkdg_mmff_ms": 48.2
+}

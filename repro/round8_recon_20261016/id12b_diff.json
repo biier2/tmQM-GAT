@@ -1,0 +1,315 @@
+{
+ "counts": {
+  "base2026": {
+   "tag": "base2026",
+   "rdkit": "2026.03.3",
+   "python": "3.12.13",
+   "csv": "D:\\ml\\chem_ml5\\data_tmQM\\local_vB\\tmQM_y.csv",
+   "n_rows": 108541,
+   "n_parse_ok": 100831,
+   "n_fail": 7710,
+   "n_empty": 7692,
+   "n_valid_tm29": 100715,
+   "n_valid_tm30": 100831,
+   "n_mols_with_La": 116,
+   "status_counts": {
+    "0": 100831,
+    "1": 7692,
+    "3": 18
+   },
+   "n_failures_recorded": 7710,
+   "elapsed_sec": 24.5
+  },
+  "rd2024": {
+   "tag": "rd2024",
+   "rdkit": "2024.03.6",
+   "python": "3.12.13",
+   "csv": "D:\\ml\\chem_ml5\\data_tmQM\\local_vB\\tmQM_y.csv",
+   "n_rows": 108541,
+   "n_parse_ok": 100849,
+   "n_fail": 7692,
+   "n_empty": 7692,
+   "n_valid_tm29": 100733,
+   "n_valid_tm30": 100849,
+   "n_mols_with_La": 116,
+   "status_counts": {
+    "0": 100849,
+    "1": 7692
+   },
+   "n_failures_recorded": 7692,
+   "elapsed_sec": 27.0
+  }
+ },
+ "only_rd2024": [
+  {
+   "csv_row": 1026,
+   "csd": "BEMLUE",
+   "smiles": "CO1CCO(C)->[Ti+4]<-1(<-[Cl-])(<-[Cl-])(<-[Cl-])<-[N-]=[PH+](=Nc1c(C(C)(C)C)cc(C(C)(C)C)cc1C(C)(C)C)c1c(C(C)(C)C)cc(C(C)(C)C)cc1C(C)(C)C",
+   "metals_in_smiles": [
+    "Ti"
+   ],
+   "natoms_rd2024": 49,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 11 P, 6, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # P, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 1656,
+   "csd": "GEFCON",
+   "smiles": "S=[As+2]1=S->[V-]23(<-NCCN->2)(<-NCCN->3)<-[S-]1",
+   "metals_in_smiles": [
+    "V"
+   ],
+   "natoms_rd2024": 13,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 1 As, 5, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # As, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 1922,
+   "csd": "AKAGEZ",
+   "smiles": "CC(C)N(c1c(N(C(C)C)C(C)C)c1=[PH+](=S)(c1ccccc1)->[W](<-[C-]#[O+])(<-[C-]#[O+])(<-[C-]#[O+])(<-[C-]#[O+])<-[C-]#[O+])C(C)C",
+   "metals_in_smiles": [
+    "W"
+   ],
+   "natoms_rd2024": 36,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 14 P, 6, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # P, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 10579,
+   "csd": "EYAJEW",
+   "smiles": "S=[As+2]1=S->[Co-]234(<-NCCN->2CCN->3CCN->4)<-[S-]1",
+   "metals_in_smiles": [
+    "Co"
+   ],
+   "natoms_rd2024": 15,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 1 As, 5, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # As, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 18747,
+   "csd": "UKANEC",
+   "smiles": "CCOC(=O)C=N[NH-]->[Au+]<-P(c1c(-c2c(C)cc(C)cc2C)cccc1-c1c(C)cc(C)cc1C)=[PH+](c1c(-c2c(C)cc(C)cc2C)cccc1-c1c(C)cc(C)cc1C)=c1n(C)c(C)c(C)n1C",
+   "metals_in_smiles": [
+    "Au"
+   ],
+   "natoms_rd2024": 68,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 34 P, 6, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # P, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 33764,
+   "csd": "JULMIO",
+   "smiles": "CN(C)C(N(C)C)=[PH+](=S->[W](<-[C-]#[O+])(<-[C-]#[O+])(<-[C-]#[O+])(<-[C-]#[O+])<-[C-]#[O+])C([Si](C)(C)C)[Si](C)(C)C",
+   "metals_in_smiles": [
+    "W"
+   ],
+   "natoms_rd2024": 29,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 7 P, 6, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # P, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 43387,
+   "csd": "KADJIK",
+   "smiles": "O=S1(=O)[O-]->[Mn-]23(<-O=[As+2](O)(O)c4ccccc41)(<-n1ccccc1-c1ccccn->21)<-n1ccccc1-c1ccccn->31",
+   "metals_in_smiles": [
+    "Mn"
+   ],
+   "natoms_rd2024": 39,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 6 As, 5, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # As, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 47687,
+   "csd": "KILJEU",
+   "smiles": "CCOC(=O)[N+]1=[PH+](=Pc2c(C(C)(C)C)cc(C(C)(C)C)cc2C(C)(C)C)(->[Fe]2345(<-[C-]#[O+])(<-[C-]#[O+])<-c6(C)c->2(C)c->3(C)[c-]->4(C)c->56C)OC(OCC)=N1",
+   "metals_in_smiles": [
+    "Fe"
+   ],
+   "natoms_rd2024": 47,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 6 P, 6, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # P, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 53943,
+   "csd": "QEJLOI",
+   "smiles": "CC(C)P(C(C)C)(C(C)C)->[RuH2]1234(<-c5(C)c->1(C)c->2(C)[c-]->3(C)c->45C)<-[SiH2+]1(OS(=O)(=O)C(F)(F)F)c2ccccc2-c2ccccc21",
+   "metals_in_smiles": [
+    "Ru"
+   ],
+   "natoms_rd2024": 42,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 21 Si, 5, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # Si, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 73495,
+   "csd": "WAVBEA",
+   "smiles": "CP(C)(c1ccccc1)->[Pd+2]1234(<-B=[BH-]->1[BH-]1BB[As+2]->25(=B->3)B[BH-]1[BH-]=[As]->45)<-P(C)(C)c1ccccc1",
+   "metals_in_smiles": [
+    "Pd"
+   ],
+   "natoms_rd2024": 30,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 15 As, 5, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # As, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 79212,
+   "csd": "ZIWFOA",
+   "smiles": "[BH+][BH-]1[BH-]2[BH-]=[As+]3->[Pd]45(<-B=[As+2]=3[BH-]1BB->4(C#N)B->52)(<-[C-]#[N+]C(C)(C)C)<-P(C)(C)c1ccccc1",
+   "metals_in_smiles": [
+    "Pd"
+   ],
+   "natoms_rd2024": 29,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 7 As, 5, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # As, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 80516,
+   "csd": "WAVBIE",
+   "smiles": "CP(C)(c1ccccc1)->[Pd+2]123(<-[Cl-])<-[BH+][As+2]45=[As]->1[BH-](B4)[BH-]1[BH-](B5)[BH-]1[B-]->2(=B->3Cl)[P+](C)(C)c1ccccc1",
+   "metals_in_smiles": [
+    "Pd"
+   ],
+   "natoms_rd2024": 32,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 12 As, 5, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # As, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 83344,
+   "csd": "ZIWFIU",
+   "smiles": "CP(C)(c1ccccc1)->[Pd+2]12(<-B=[As+2]->13=[As]->2B[BH-]1B[BH-]13)(<-B1[BH-]2B[B-]12C#N)<-P(C)(C)c1ccccc1",
+   "metals_in_smiles": [
+    "Pd"
+   ],
+   "natoms_rd2024": 32,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 11 As, 5, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # As, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 88431,
+   "csd": "ZOPBEL",
+   "smiles": "CC[O+]=[PH+]1(c2c(C(C)(C)C)cc(C(C)(C)C)cc2C(C)(C)C)=C2c3ccccc3C=P(c3c(C(C)(C)C)cc(C(C)(C)C)cc3C(C)(C)C)->[Pd]<-2<-1<-[Cl-]",
+   "metals_in_smiles": [
+    "Pd"
+   ],
+   "natoms_rd2024": 51,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 3 P, 6, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # P, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 91379,
+   "csd": "JOFZAF",
+   "smiles": "CP(C)(c1ccccc1)->[Pt-2]1234(<-[BH+][BH-]([BH+]->1)[BH-]([BH+]->2)[BH-]1[BH-]2BB[As+2]->32#[As+]->41)<-P(C)(C)c1ccccc1",
+   "metals_in_smiles": [
+    "Pt"
+   ],
+   "natoms_rd2024": 30,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 19 As, 5, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # As, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 94493,
+   "csd": "SOQYOP",
+   "smiles": "Cc1cc(C)c(-c2cccc(-c3c(C)cc(C)cc3C)c2P(->[AuH])=[PH+](c2c(-c3c(C)cc(C)cc3C)cccc2-c2c(C)cc(C)cc2C)=c2n(C)c(C)c(C)n2C)c(C)c1",
+   "metals_in_smiles": [
+    "Au"
+   ],
+   "natoms_rd2024": 60,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 23 P, 6, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # P, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 95825,
+   "csd": "SOQYEF",
+   "smiles": "Cc1cc(C)c(-c2cccc(-c3c(C)cc(C)cc3C)c2P(->[Au+]<-[Cl-])=[PH+](c2c(-c3c(C)cc(C)cc3C)cccc2-c2c(C)cc(C)cc2C)=c2n(C)c(C)c(C)n2C)c(C)c1",
+   "metals_in_smiles": [
+    "Au"
+   ],
+   "natoms_rd2024": 61,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 24 P, 6, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # P, D, is greater than permitted",
+   "in_rd2024_valid": true
+  },
+  {
+   "csv_row": 98109,
+   "csd": "SOQYUV",
+   "smiles": "Cc1cc(C)c(-c2cccc(-c3c(C)cc(C)cc3C)c2P(->[Au+]<-[O-]C=O)=[PH+](c2c(-c3c(C)cc(C)cc3C)cccc2-c2c(C)cc(C)cc2C)=c2n(C)c(C)c(C)n2C)c(C)c1",
+   "metals_in_smiles": [
+    "Au"
+   ],
+   "natoms_rd2024": 63,
+   "base2026_status": 3,
+   "base2026_msg": "AtomValenceException: Explicit valence for atom # 26 P, 6, is greater than permitted",
+   "base2026_msg_norm": "AtomValenceException: Explicit valence for atom # P, D, is greater than permitted",
+   "in_rd2024_valid": true
+  }
+ ],
+ "only_base2026": [],
+ "parse_only_rd2024": [
+  1026,
+  1656,
+  1922,
+  10579,
+  18747,
+  33764,
+  43387,
+  47687,
+  53943,
+  73495,
+  79212,
+  80516,
+  83344,
+  88431,
+  91379,
+  94493,
+  95825,
+  98109
+ ],
+ "parse_only_base2026": [],
+ "in_main_domain_90377": [
+  1026,
+  1922,
+  10579,
+  18747,
+  33764,
+  47687,
+  53943,
+  88431,
+  94493,
+  95825,
+  98109
+ ],
+ "in_heldout_test": []
+}

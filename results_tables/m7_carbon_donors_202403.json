@@ -1,0 +1,69 @@
+{
+ "N_attention": 20000,
+ "N_perturb": 2000,
+ "sanity_donor_pct": 22.0,
+ "sanity_C_pct": 71.233,
+ "sanity_metal_pct": 4.836,
+ "n_mc_complexes": 10516,
+ "mc_carbon_counts": {
+  "carbonyl_C": 7893,
+  "other_MC": 32474,
+  "nhc_C": 235
+ },
+ "top5_donor_classic_pct": 22.0,
+ "top5_donor_withMC_pct": 27.313,
+ "top5_MC_split_pct": {
+  "carbonyl": 1.6,
+  "nhc": 0.019,
+  "other": 3.694
+ },
+ "backbone_C_pct": 65.92,
+ "layerwise_donor_classic": [
+  19.757969083087517,
+  19.75796904721763,
+  19.7579690257553,
+  19.757969050360842,
+  19.75796902172733
+ ],
+ "layerwise_donor_withMC": [
+  26.79396910464391,
+  26.793969042035755,
+  26.79396903334651,
+  26.79396906591486,
+  26.793969016242773
+ ],
+ "perturb_donor_frac": {
+  "gap": {
+   "classic": 0.2355323145016832,
+   "with_MC": 0.2947549341122369
+  },
+  "homo": {
+   "classic": 0.3885382092079705,
+   "with_MC": 0.49541268700436586
+  },
+  "lumo": {
+   "classic": 0.3499806547130627,
+   "with_MC": 0.44854374108367356
+  },
+  "dipole": {
+   "classic": 0.2532996905421369,
+   "with_MC": 0.3205189867831458
+  },
+  "metal_charge": {
+   "classic": 0.26064737600239046,
+   "with_MC": 0.33598203756379236
+  },
+  "E_elec": {
+   "classic": 0.13222915491749498,
+   "with_MC": 0.1755469555208656
+  },
+  "E_disp": {
+   "classic": 0.17256664902012334,
+   "with_MC": 0.24719426620291904
+  },
+  "polarizability": {
+   "classic": 0.16416225174633503,
+   "with_MC": 0.22909350346975488
+  }
+ }
+}
