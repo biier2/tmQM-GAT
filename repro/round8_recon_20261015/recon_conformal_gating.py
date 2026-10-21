@@ -46,7 +46,8 @@ for j, p in enumerate(P8):
     for tgt in (0.80, 0.90, 0.95):
         a = 1 - tgt
         s_cal = np.abs(y_true[mask, j] - y_mean[mask, j]) / sigma[mask, j]
-        q_i = float(np.quantile(s_cal, min(1.0, (1 - a) * (1 + 1.0 / n_cal))))
+        q_i = float(np.quantile(s_cal, min(1.0, (1 - a) * (1 + 1.0 / n_cal)),
+                                method='linear'))
         k = int(np.ceil((n_cal + 1) * (1 - a)))
         q_o = float(np.sort(s_cal)[k - 1])
         s_ev = np.abs(y_true[ev, j] - y_mean[ev, j]) / sigma[ev, j]
@@ -74,7 +75,8 @@ keep_masks = {}
 for j, p in enumerate(P8):
     a = 1 - 0.90
     s_cal = np.abs(y_true[mask, j] - y_mean[mask, j]) / sigma[mask, j]
-    q90 = float(np.quantile(s_cal, min(1.0, (1 - a) * (1 + 1.0 / n_cal))))
+    q90 = float(np.quantile(s_cal, min(1.0, (1 - a) * (1 + 1.0 / n_cal)),
+                            method='linear'))
     hw = q90 * sigma[ev, j]                       # 逐复形半宽（= q*σ；表 14 的均值 = q*mean σ）
     mae_pre = float(np.abs(y_true[ev, j] - y_mean[ev, j]).mean())
     thr75 = float(np.percentile(hw, 75))

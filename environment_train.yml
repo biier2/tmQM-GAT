@@ -1,6 +1,7 @@
 # tmQM dual-GAT — training stack (pinned)
-# Used for: dataset graph construction (90,317 training graphs), model training,
-# ensemble cross-validation, ablations, and the XAI attention/perturbation analysis.
+# Used for: dataset graph construction (90,377 graphs; 13,556 held-out test
+# complexes), model training, ensemble cross-validation, ablations, and the XAI
+# attention/perturbation analysis.
 # NOTE: RDKit's SMILES parsing, bond perception, and ETKDG behavior are
 # version-sensitive; reproduce dataset statistics with this stack, not the
 # inference stack (environment_infer.yml).
@@ -16,8 +17,10 @@ dependencies:
   - scikit-learn
   - matplotlib
   - tqdm
+  - networkx=3.6.1           # VF2++ matching in analysis/rebuild_match_iso.py
   - rdkit=2024.03.6
   - pytorch=2.11.0            # GPU (CUDA) build; training on NVIDIA RTX 5070 Ti
   - pip
   - pip:
       - gzip-reader          # optional; for tmQM_X*.xyz.gz blocks
+      - torch-geometric==2.8.0.post1   # SchNet/DimeNet++ baselines only; GAT does not require PyG

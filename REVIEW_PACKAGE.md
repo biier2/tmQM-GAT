@@ -51,7 +51,9 @@ tmQM release                                  108,541
 The 7,383 unparseable records are counted with the training stack
 (RDKit 2024.03.6). The 10,356 matching failures are the complement of
 `retained_ids.csv` among the 100,733 parseable records. Counts and source-file
-md5 values are recorded in `data_indices/index_reconciliation.json`.
+md5 values are recorded in `data_indices/index_reconciliation.json`; the
+source files and the full chain are also documented in
+`repro/data_provenance_90k.md`.
 
 ## Large files
 

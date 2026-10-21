@@ -8,7 +8,7 @@ channels:
   - conda-forge
 dependencies:
   - python=3.12.13
-  - numpy
+  - numpy=2.5.0             # numpy.quantile(method='linear') implementation used in SI
   - pandas
   - tqdm
   - rdkit=2026.03.3
