@@ -1,0 +1,20 @@
+{
+  "main": {
+    "n": 90377,
+    "n_metals": 29,
+    "pd_n": 9456,
+    "raw_min": 3.0915425540966095,
+    "raw_max": 18.16158213629613,
+    "mean_sample_weight": 3.0,
+    "sample_weight_min": 1.0,
+    "sample_weight_max": 1.0
+  },
+  "ablation": {
+    "raw_min": 3.070057413999374,
+    "raw_max": 5.0,
+    "norm_min": 0.734320878982544,
+    "norm_max": 1.1959400177001953,
+    "n_ne1": 27993,
+    "n": 27993
+  }
+}

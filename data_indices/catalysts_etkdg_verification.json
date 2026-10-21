@@ -1,0 +1,198 @@
+{
+  "check": "SDF conformers -> 8d/22d B ensemble -> published d3_mean",
+  "reference": "D:\\ml\\tmqm_GAT\\results_tables\\case_study_new_results.json",
+  "checkpoint": "D:\\ml\\chem_ml5\\ensemble_checkpoint_B_8d22d.pt",
+  "rdkit_version_sdf": "2026.03.3",
+  "n_compared": 18,
+  "max_abs_diff_gap_ev": 0.0032503377221204666,
+  "max_abs_diff_dipole_d": 0.01384878158569336,
+  "mean_abs_diff_gap_ev": 0.0008853739470844582,
+  "mean_abs_diff_dipole_d": 0.0049319300386640764,
+  "tolerance": {
+    "gap_ev": 0.005,
+    "dipole_d": 0.02
+  },
+  "note": "ETKDG coordinates depend on the RDKit build; the archived SDF is a deterministic regeneration of the deployment protocol with RDKit 2026.03.3, not a byte-archived production file.",
+  "molecules": [
+    {
+      "name": "Zr-cat1",
+      "gap_ref_ev": 3.9137115393348947,
+      "gap_sdf_ev": 3.916961877057015,
+      "abs_diff_ev": 0.0032503377221204666,
+      "dipole_ref_d": 0.5267747044563293,
+      "dipole_sdf_d": 0.5247106552124023,
+      "abs_diff_d": 0.002064049243927002,
+      "flag": "OK"
+    },
+    {
+      "name": "Zr-cat2",
+      "gap_ref_ev": 3.918100468414764,
+      "gap_sdf_ev": 3.9204871310685063,
+      "abs_diff_ev": 0.002386662653742544,
+      "dipole_ref_d": 0.36694908142089844,
+      "dipole_sdf_d": 0.37270432710647583,
+      "abs_diff_d": 0.005755245685577393,
+      "flag": "OK"
+    },
+    {
+      "name": "Zr-cat3",
+      "gap_ref_ev": 3.9216131525074194,
+      "gap_sdf_ev": 3.9228364894469947,
+      "abs_diff_ev": 0.0012233369395753257,
+      "dipole_ref_d": 0.23248308897018433,
+      "dipole_sdf_d": 0.23761636018753052,
+      "abs_diff_d": 0.005133271217346191,
+      "flag": "OK"
+    },
+    {
+      "name": "Ni-cat1",
+      "gap_ref_ev": 1.4631262866495425,
+      "gap_sdf_ev": 1.462674986015221,
+      "abs_diff_ev": 0.00045130063432141654,
+      "dipole_ref_d": 9.578173637390137,
+      "dipole_sdf_d": 9.5799560546875,
+      "abs_diff_d": 0.0017824172973632812,
+      "flag": "OK"
+    },
+    {
+      "name": "Ni-cat2",
+      "gap_ref_ev": 1.5602960168014592,
+      "gap_sdf_ev": 1.5603194333438062,
+      "abs_diff_ev": 2.341654234694346e-05,
+      "dipole_ref_d": 8.749601364135742,
+      "dipole_sdf_d": 8.750041961669922,
+      "abs_diff_d": 0.0004405975341796875,
+      "flag": "OK"
+    },
+    {
+      "name": "Ni-cat3",
+      "gap_ref_ev": 1.5475048065722208,
+      "gap_sdf_ev": 1.5468585708256353,
+      "abs_diff_ev": 0.0006462357465855106,
+      "dipole_ref_d": 9.535163879394531,
+      "dipole_sdf_d": 9.538541793823242,
+      "abs_diff_d": 0.0033779144287109375,
+      "flag": "OK"
+    },
+    {
+      "name": "Ni-cat4",
+      "gap_ref_ev": 1.610129257284351,
+      "gap_sdf_ev": 1.6094134815029173,
+      "abs_diff_ev": 0.0007157757814337806,
+      "dipole_ref_d": 10.390028953552246,
+      "dipole_sdf_d": 10.399330139160156,
+      "abs_diff_d": 0.009301185607910156,
+      "flag": "OK"
+    },
+    {
+      "name": "Ni-cat5",
+      "gap_ref_ev": 2.4911474684348374,
+      "gap_sdf_ev": 2.491203222107092,
+      "abs_diff_ev": 5.575367225452155e-05,
+      "dipole_ref_d": 7.87198543548584,
+      "dipole_sdf_d": 7.864858627319336,
+      "abs_diff_d": 0.007126808166503906,
+      "flag": "OK"
+    },
+    {
+      "name": "Pd-cat1",
+      "gap_ref_ev": 3.0875617334937546,
+      "gap_sdf_ev": 3.087869493764599,
+      "abs_diff_ev": 0.0003077602708443372,
+      "dipole_ref_d": 2.4232144355773926,
+      "dipole_sdf_d": 2.4214067459106445,
+      "abs_diff_d": 0.0018076896667480469,
+      "flag": "OK"
+    },
+    {
+      "name": "Pd-cat2",
+      "gap_ref_ev": 3.026206134991822,
+      "gap_sdf_ev": 3.0257937605577654,
+      "abs_diff_ev": 0.0004123744340565061,
+      "dipole_ref_d": 7.124227523803711,
+      "dipole_sdf_d": 7.130147933959961,
+      "abs_diff_d": 0.00592041015625,
+      "flag": "OK"
+    },
+    {
+      "name": "Co-cat1",
+      "gap_ref_ev": 2.3743208181116446,
+      "gap_sdf_ev": 2.3750034458006652,
+      "abs_diff_ev": 0.0006826276890206096,
+      "dipole_ref_d": 0.16760770976543427,
+      "dipole_sdf_d": 0.16674433648586273,
+      "abs_diff_d": 0.0008633732795715332,
+      "flag": "OK"
+    },
+    {
+      "name": "Fe-cat1",
+      "gap_ref_ev": 2.486326904561406,
+      "gap_sdf_ev": 2.485977379721527,
+      "abs_diff_ev": 0.00034952483987860106,
+      "dipole_ref_d": 4.244516849517822,
+      "dipole_sdf_d": 4.246854305267334,
+      "abs_diff_d": 0.0023374557495117188,
+      "flag": "OK"
+    },
+    {
+      "name": "Fe-cat2",
+      "gap_ref_ev": 2.552661204625346,
+      "gap_sdf_ev": 2.551839294126003,
+      "abs_diff_ev": 0.0008219104993432147,
+      "dipole_ref_d": 3.7418980598449707,
+      "dipole_sdf_d": 3.7378969192504883,
+      "abs_diff_d": 0.004001140594482422,
+      "flag": "OK"
+    },
+    {
+      "name": "cis-PdCl2(PPh3)2",
+      "gap_ref_ev": 3.366163036489785,
+      "gap_sdf_ev": 3.3643774997932585,
+      "abs_diff_ev": 0.0017855366965267017,
+      "dipole_ref_d": 6.5524725914001465,
+      "dipole_sdf_d": 6.538623809814453,
+      "abs_diff_d": 0.01384878158569336,
+      "flag": "OK"
+    },
+    {
+      "name": "trans-PdCl2(PPh3)2",
+      "gap_ref_ev": 3.36355417010953,
+      "gap_sdf_ev": 3.3619312313953604,
+      "abs_diff_ev": 0.0016229387141697416,
+      "dipole_ref_d": 6.682873249053955,
+      "dipole_sdf_d": 6.693063735961914,
+      "abs_diff_d": 0.010190486907958984,
+      "flag": "OK"
+    },
+    {
+      "name": "Rh(CO)2(acac)",
+      "gap_ref_ev": 3.2010141715721088,
+      "gap_sdf_ev": 3.200798050064388,
+      "abs_diff_ev": 0.00021612150772076788,
+      "dipole_ref_d": 6.407190322875977,
+      "dipole_sdf_d": 6.418097496032715,
+      "abs_diff_d": 0.010907173156738281,
+      "flag": "OK"
+    },
+    {
+      "name": "Ni(IMes)2Cl2",
+      "gap_ref_ev": 2.6438081189893996,
+      "gap_sdf_ev": 2.6442628662143695,
+      "abs_diff_ev": 0.00045474722496985365,
+      "dipole_ref_d": 5.343564987182617,
+      "dipole_sdf_d": 5.347028732299805,
+      "abs_diff_d": 0.0034637451171875,
+      "flag": "OK"
+    },
+    {
+      "name": "Pt(dppe)Cl2",
+      "gap_ref_ev": 3.625160537358651,
+      "gap_sdf_ev": 3.6256909068372605,
+      "abs_diff_ev": 0.0005303694786094049,
+      "dipole_ref_d": 8.603239059448242,
+      "dipole_sdf_d": 8.60278606414795,
+      "abs_diff_d": 0.00045299530029296875,
+      "flag": "OK"
+    }
+  ]
+}

@@ -1,142 +1,177 @@
-"""验证 metal weighting 公式是否退化 — 独立脚本，不需要 GPU，不影响训练"""
+# -*- coding: utf-8 -*-
+"""Verify the metal-frequency weights of the main 90,377-complex cohort.
+
+The manuscript uses w_m = sqrt(N / n_m), clipped to [0.5, 3.0] and normalised
+to mean 1 over the training sample.  In the main domain the rarest transition
+metal is Pd (n_m = 9,456 of 90,377), so the smallest raw weight is 3.0915 and
+every element weight is clipped to 3.0.  Every complex contains at least one
+transition metal, hence every per-sample weight is 3.0 and every normalised
+weight is 1.0: the weighting is degenerate by construction.
+
+This script re-derives the released table from its counts and, when the public
+tmQM CSV is available, recounts the metals from the SMILES strings for the
+retained csv_idx values.  CPU only; no GPU and no XYZ parsing.
+
+Usage
+-----
+    python analysis/verify_metal_weight.py
+    python analysis/verify_metal_weight.py --tmqm-y data_tmQM/local_vB/tmQM_y.csv
+
+The optional recount uses RDKit and requires the public tmQM release; it is
+skipped with a notice when the CSV is absent.
+"""
+import argparse
+import json
+import os
+import sys
+
 import numpy as np
-from collections import Counter
-
-# 复用与 ablation_full.ipynb 相同的数据加载逻辑
 import pandas as pd
-df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')
 
-def atom_to_z(sym):
-    tbl = {"H":1,"He":2,"Li":3,"Be":4,"B":5,"C":6,"N":7,"O":8,"F":9,"Ne":10,
-           "Na":11,"Mg":12,"Al":13,"Si":14,"P":15,"S":16,"Cl":17,"Ar":18,
-           "K":19,"Ca":20,"Sc":21,"Ti":22,"V":23,"Cr":24,"Mn":25,"Fe":26,
-           "Co":27,"Ni":28,"Cu":29,"Zn":30,"Br":35,"Ru":44,"Rh":45,"Pd":46,
-           "Ag":47,"Cd":48,"I":53,"Pt":78,"Au":79,"Hg":80,"Mo":42,"W":74,
-           "Ir":77,"Os":76,"Re":75}
-    return tbl.get(sym,0)
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA = os.path.join(ROOT, 'data_indices')
 
-def is_TM(z):
-    return z in [21,22,23,24,25,26,27,28,29,30,39,40,41,42,43,44,45,46,47,48,
-                 72,73,74,75,76,77,78,79,80]
+TM_Z = set(list(range(21, 31)) + list(range(39, 49)) + list(range(72, 81)))
+CLIP_LO, CLIP_HI = 0.5, 3.0
+TOL = 1e-9
 
-# Parse XYZ files to get atom lists (lightweight, no BO needed)
-import gzip
 
-def parse_atoms_only(xyz_p):
-    """只提取原子序数列表，不解析坐标和BO"""
-    atoms_list = []
-    with gzip.open(xyz_p, "rt") as f:
-        blocks = f.read().strip().split(chr(10))
-    i = 0
-    while i < len(blocks):
-        line = blocks[i].strip(); i += 1
-        if not line: continue
-        parts = line.split()
-        if len(parts) == 1 and parts[0].isdigit():
-            n_atoms = int(parts[0])
-            if i >= len(blocks): break
-            header = blocks[i].strip(); i += 1  # comment line
-            atoms = []
-            for _ in range(n_atoms):
-                if i >= len(blocks): break
-                cline = blocks[i].strip(); i += 1
-                cparts = cline.split()
-                if len(cparts) >= 4:
-                    z = atom_to_z(cparts[0])
-                    atoms.append(z)
-            if any(is_TM(z) for z in atoms) and len(atoms) > 1:
-                atoms_list.append(atoms)
-    return atoms_list
+def fail(msg):
+    print(f'FAIL: {msg}')
+    sys.exit(1)
 
-print("Parsing atom lists from XYZ files (no BO needed)...")
-all_atoms = []
-for part in [1, 2, 3]:
-    atoms = parse_atoms_only(f"data_tmQM/local_vB/tmQM_X{part}.xyz.gz")
-    all_atoms.extend(atoms)
-    print(f"  Part {part}: {len(atoms)} TM complexes")
 
-print(f"\nTotal: {len(all_atoms)} complexes")
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--tmqm-y', default=None,
+                    help='path to the public tmQM_y.csv (semicolon-separated)')
+    ap.add_argument('--table', default=os.path.join(DATA, 'metal_weight_table.csv'))
+    ap.add_argument('--recon', default=os.path.join(DATA, 'metal_weight_reconciliation.json'))
+    ap.add_argument('--retained', default=os.path.join(DATA, 'retained_ids.csv'))
+    args = ap.parse_args()
 
-# Apply same 30k subsample as ablation notebook
-N_SAMPLE = 30000
-rng = np.random.RandomState(42)
-perm = rng.permutation(len(all_atoms))[:N_SAMPLE]
-sampled_atoms = [all_atoms[i] for i in perm]
+    table = pd.read_csv(args.table)
+    recon = json.load(open(args.recon, encoding='utf-8'))
+    n_total = int(recon['main']['n'])
+    print(f'main cohort: {n_total:,} complexes, {len(table)} transition metals')
 
-# ============================================================
-# 当前公式 (与 ablation_full.ipynb 完全一致)
-# ============================================================
-print("\n" + "="*60)
-print("CURRENT FORMULA: w = max_m min(5.0, N_total/(n_m+1))")
-print("="*60)
+    for col in ('Z', 'element', 'n_m', 'raw', 'clipped', 'normalized'):
+        if col not in table.columns:
+            fail(f'column {col!r} missing from {args.table}')
+    if len(table) != recon['main']['n_metals']:
+        fail(f'{len(table)} metals in table, {recon["main"]["n_metals"]} expected')
+    if set(table['Z'].astype(int)) - TM_Z:
+        fail('non-transition-metal Z in table')
 
-mc = Counter()
-for atoms in sampled_atoms:
-    for z in set(atoms):
-        if z >= 21:
-            mc[z] += 1
+    # --- re-derive the weights from the counts -----------------------------
+    raw = np.sqrt(n_total / table['n_m'].to_numpy(dtype=float))
+    clipped = np.clip(raw, CLIP_LO, CLIP_HI)
+    if not np.allclose(raw, table['raw'], atol=TOL, rtol=0):
+        fail('raw weights do not reproduce from sqrt(N / n_m)')
+    if not np.allclose(clipped, table['clipped'], atol=TOL, rtol=0):
+        fail('clipped weights do not reproduce with clip [0.5, 3.0]')
 
-total_c = len(sampled_atoms)
-weight_map_current = {z: min(5.0, total_c/(c+1)) for z, c in mc.items()}
+    # Every element weight is clipped to the ceiling, so every sample weight
+    # equals the ceiling and the mean-normalised weight is 1.0.
+    if not np.all(clipped == CLIP_HI):
+        fail('not all element weights are clipped to 3.0; cohort is no longer degenerate')
+    mean_sample_weight = CLIP_HI
+    normalized = clipped / mean_sample_weight
+    if not np.allclose(normalized, table['normalized'], atol=TOL, rtol=0):
+        fail('normalised weights do not reproduce')
+    if not np.allclose(table['normalized'], 1.0, atol=TOL, rtol=0):
+        fail('normalised weights are not all 1.0')
 
-# 统计 weight 分布
-weights_current = []
-for atoms in sampled_atoms:
-    w = max((weight_map_current.get(z, 1.0) for z in set(atoms) if z >= 21), default=1.0)
-    weights_current.append(w)
-weights_current = np.array(weights_current)
+    # --- cross-check the reconciliation record ----------------------------
+    main_rec = recon['main']
+    checks = {
+        'pd_n': int(table.loc[table['Z'] == 46, 'n_m'].iloc[0]),
+        'raw_min': float(raw.min()),
+        'raw_max': float(raw.max()),
+        'mean_sample_weight': mean_sample_weight,
+        'sample_weight_min': float(normalized.min()),
+        'sample_weight_max': float(normalized.max()),
+    }
+    for key, value in checks.items():
+        recorded = main_rec[key]
+        if isinstance(value, int):
+            ok = value == recorded
+        else:
+            ok = abs(value - recorded) <= 1e-9
+        if not ok:
+            fail(f'{key}: recomputed {value!r} != recorded {recorded!r}')
 
-print(f"\nMetal counts (top 10):")
-for z, c in sorted(mc.items(), key=lambda x: -x[1])[:10]:
-    sym = {24:'Cr',25:'Mn',26:'Fe',27:'Co',28:'Ni',29:'Cu',30:'Zn',
-           42:'Mo',44:'Ru',45:'Rh',46:'Pd',47:'Ag',48:'Cd',78:'Pt',79:'Au'}.get(z, str(z))
-    raw_w = total_c/(c+1)
-    print(f"  Z={z:2d} ({sym:3s}): count={c:6d} ({c/total_c*100:5.1f}%), N_total/n = {raw_w:.1f}, weight = {weight_map_current[z]:.1f}")
+    print(f'  Pd count: {checks["pd_n"]:,} ({checks["pd_n"] / n_total * 100:.2f}%)')
+    print(f'  raw weight range: {raw.min():.4f} - {raw.max():.4f}')
+    print(f'  clipped weight: all {CLIP_HI:.1f} -> per-sample weight all '
+          f'{mean_sample_weight:.1f} -> normalised weight all 1.0')
+    print('  DEGENERATE BY CONSTRUCTION: the weighting is a constant factor and '
+          'cannot change relative sample losses.')
 
-print(f"\nWeight distribution (current formula):")
-print(f"  min={weights_current.min():.3f}, max={weights_current.max():.3f}")
-print(f"  mean={weights_current.mean():.3f}, median={np.median(weights_current):.3f}")
-print(f"  unique values: {np.unique(weights_current)}")
-print(f"  fraction = 5.0: {(weights_current == 5.0).mean()*100:.1f}%")
+    # --- optional independent recount from the public SMILES --------------
+    if args.tmqm_y:
+        if not os.path.exists(args.tmqm_y):
+            fail(f'tmQM CSV not found: {args.tmqm_y}')
+        from rdkit import Chem, RDLogger, rdBase
+        RDLogger.DisableLog('rdApp.*')
+        y = pd.read_csv(args.tmqm_y, sep=';')
+        if 'SMILES' not in y.columns:
+            fail("'SMILES' column missing from the tmQM CSV")
+        retained = pd.read_csv(args.retained)
+        idx = retained['csv_idx'].to_numpy(dtype=int)
+        print(f'  recounting metals from {len(idx):,} retained SMILES ...')
 
-if len(np.unique(weights_current)) <= 1:
-    print("\n  *** DEGENERATE: All weights are identical! Formula fails. ***")
-elif (weights_current == 5.0).mean() > 0.95:
-    print("\n  *** NEARLY DEGENERATE: >95% weights clipped to 5.0. Formula barely works. ***")
-else:
-    print("\n  Formula produces meaningful variation.")
+        counts = {z: 0 for z in sorted(set(table['Z'].astype(int)))}
+        n_parsed = 0
+        n_unsanitized = 0
+        n_multi = 0
+        failures = 0
+        for csv_idx in idx:
+            smi = y['SMILES'].iloc[csv_idx]
+            if not isinstance(smi, str) or not smi:
+                failures += 1
+                continue
+            mol = Chem.MolFromSmiles(smi)
+            if mol is None:
+                # Some records parsed under the training stack (RDKit 2024.03.6)
+                # fail the stricter valence checks of newer builds; the atom
+                # graph is still readable and is all we need for the counts.
+                mol = Chem.MolFromSmiles(smi, sanitize=False)
+                if mol is None:
+                    failures += 1
+                    continue
+                n_unsanitized += 1
+            n_parsed += 1
+            metals = {a.GetAtomicNum() for a in mol.GetAtoms()
+                      if a.GetAtomicNum() in TM_Z}
+            if len(metals) > 1:
+                n_multi += 1
+            for z in metals:
+                if z not in counts:
+                    fail(f'metal Z={z} in SMILES but not in the released table')
+                counts[z] += 1
+        if failures:
+            fail(f'{failures} retained SMILES could not be read by this RDKit build')
+        if n_unsanitized:
+            print(f'  {n_unsanitized} SMILES required sanitize=False '
+                  f'(RDKit {rdBase.rdkitVersion}; stricter than the training stack)')
+        table_counts = dict(zip(table['Z'].astype(int), table['n_m'].astype(int)))
+        for z in sorted(counts):
+            if counts[z] != table_counts[z]:
+                fail(f'Z={z}: SMILES recount {counts[z]:,} != table {table_counts[z]:,}')
+        print(f'  SMILES recount matches the table for all {len(counts)} metals '
+              f'({n_parsed:,} complexes; {n_multi:,} contain more than one metal)')
 
-# ============================================================
-# 修正公式建议
-# ============================================================
-print("\n" + "="*60)
-print("PROPOSED FIX: w_m = sqrt(N_total / n_m), clamp [0.2, 5.0], normalize mean=1")
-print("="*60)
+    # --- ablation cohort, for context -------------------------------------
+    summary = pd.read_csv(os.path.join(DATA, 'metal_weight_summary.csv'))
+    abl = summary[summary['cohort'] == 'ablation_27993'].set_index('quantity')['value']
+    print(f'ablation cohort (27,993 complexes): raw {abl["raw_min"]:.4f} - '
+          f'{abl["raw_max"]:.4f}, normalised {abl["normalized_min"]:.4f} - '
+          f'{abl["normalized_max"]:.4f}; this is the run in which the weighting '
+          'is non-trivial.')
 
-weight_map_fixed = {}
-for z, c in mc.items():
-    raw = np.sqrt(total_c / c)
-    weight_map_fixed[z] = np.clip(raw, 0.2, 5.0)
+    print('\nALL CHECKS PASSED')
 
-weights_fixed = []
-for atoms in sampled_atoms:
-    w = max((weight_map_fixed.get(z, 1.0) for z in set(atoms) if z >= 21), default=1.0)
-    weights_fixed.append(w)
-weights_fixed = np.array(weights_fixed)
-# Normalize to mean 1
-weights_fixed = weights_fixed / weights_fixed.mean()
 
-print(f"\nPer-metal weights (fixed formula):")
-for z, c in sorted(mc.items(), key=lambda x: -x[1])[:10]:
-    sym = {24:'Cr',25:'Mn',26:'Fe',27:'Co',28:'Ni',29:'Cu',30:'Zn',
-           42:'Mo',44:'Ru',45:'Rh',46:'Pd',47:'Ag',48:'Cd',78:'Pt',79:'Au'}.get(z, str(z))
-    print(f"  Z={z:2d} ({sym:3s}): count={c:6d} ({c/total_c*100:5.1f}%), weight={weight_map_fixed[z]:.3f}")
-
-print(f"\nWeight distribution (fixed formula, after mean normalization):")
-print(f"  min={weights_fixed.min():.3f}, max={weights_fixed.max():.3f}")
-print(f"  mean={weights_fixed.mean():.3f}, std={weights_fixed.std():.3f}")
-print(f"  unique values: {len(np.unique(np.round(weights_fixed, 2)))}")
-print(f"  % with weight > 2.0: {(weights_fixed > 2.0).mean()*100:.1f}%")
-print(f"  % with weight < 0.5: {(weights_fixed < 0.5).mean()*100:.1f}%")
-
-print("\nDone.")
+if __name__ == '__main__':
+    main()

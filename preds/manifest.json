@@ -1,0 +1,395 @@
+{
+  "source_dir": "D:\\ml\\chem_ml5",
+  "files": {
+    "test_preds_A_8d6d.npz": {
+      "arrays": {
+        "preds": {
+          "shape": [
+            9,
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "ens_mean": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "y_true": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "te_idx": {
+          "shape": [
+            13556
+          ],
+          "dtype": "int64"
+        }
+      },
+      "src_bytes": 4881160,
+      "dst_bytes": 4381918,
+      "src_md5": "e74c73fb87130e6e6f1ed21b32213e82",
+      "dst_md5": "18a68bada4e6dec227c94b046648e019"
+    },
+    "test_preds_B_8d22d.npz": {
+      "arrays": {
+        "preds": {
+          "shape": [
+            9,
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "ens_mean": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "y_true": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "te_idx": {
+          "shape": [
+            13556
+          ],
+          "dtype": "int64"
+        }
+      },
+      "src_bytes": 4881160,
+      "dst_bytes": 4381976,
+      "src_md5": "921e531364312dfe9f71270334fc6c20",
+      "dst_md5": "f29d6fb398df9e45b5ce44d987e53541"
+    },
+    "test_preds_C_11d6d.npz": {
+      "arrays": {
+        "preds": {
+          "shape": [
+            9,
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "ens_mean": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "y_true": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "te_idx": {
+          "shape": [
+            13556
+          ],
+          "dtype": "int64"
+        }
+      },
+      "src_bytes": 4881160,
+      "dst_bytes": 4380086,
+      "src_md5": "cd0a9ea640310ec2e0215afa3b785aee",
+      "dst_md5": "021a935b0385b1cae7dee727df79e1ca"
+    },
+    "test_preds_D_11d23d.npz": {
+      "arrays": {
+        "preds": {
+          "shape": [
+            9,
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "ens_mean": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "y_true": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "te_idx": {
+          "shape": [
+            13556
+          ],
+          "dtype": "int64"
+        }
+      },
+      "src_bytes": 4881160,
+      "dst_bytes": 4380947,
+      "src_md5": "6eff32ee36ae7d04ac58c26a3577885f",
+      "dst_md5": "b49095241c5bac73e30c9c9719f4c6c5"
+    },
+    "test_preds_E_9d6d.npz": {
+      "arrays": {
+        "preds": {
+          "shape": [
+            9,
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "ens_mean": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "y_true": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "te_idx": {
+          "shape": [
+            13556
+          ],
+          "dtype": "int64"
+        }
+      },
+      "src_bytes": 4881160,
+      "dst_bytes": 4382068,
+      "src_md5": "b33174fd11aa543cb4f5dbea8028b153",
+      "dst_md5": "5f5f30ca535d9820541c676a01000dbd"
+    },
+    "test_preds_F_10d6d.npz": {
+      "arrays": {
+        "preds": {
+          "shape": [
+            9,
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "ens_mean": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "y_true": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "te_idx": {
+          "shape": [
+            13556
+          ],
+          "dtype": "int64"
+        }
+      },
+      "src_bytes": 4881160,
+      "dst_bytes": 4380986,
+      "src_md5": "0e130220ab0a579f5c3cfa8d3afa591c",
+      "dst_md5": "2224829cd07bbea16a4c49c7353a5c3b"
+    },
+    "test_preds_G_7d6d.npz": {
+      "arrays": {
+        "preds": {
+          "shape": [
+            9,
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "ens_mean": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "y_true": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "te_idx": {
+          "shape": [
+            13556
+          ],
+          "dtype": "int64"
+        }
+      },
+      "src_bytes": 4881160,
+      "dst_bytes": 4360358,
+      "src_md5": "2a4f5795ded7dc4e75929eee716c7b79",
+      "dst_md5": "950a46a5f28d635331bf9d1aef5d3aad"
+    },
+    "test_preds_H_7d22d.npz": {
+      "arrays": {
+        "preds": {
+          "shape": [
+            9,
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "ens_mean": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "y_true": {
+          "shape": [
+            13556,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "te_idx": {
+          "shape": [
+            13556
+          ],
+          "dtype": "int64"
+        }
+      },
+      "src_bytes": 4881160,
+      "dst_bytes": 4366068,
+      "src_md5": "4ca9c2c31a2a2a9edab1caf4a1d80662",
+      "dst_md5": "31d7ea956c11246d82d00c0d27cfe8b9"
+    },
+    "test_preds_SchNet.npz": {
+      "arrays": {
+        "preds": {
+          "shape": [
+            9,
+            13557,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "ens_mean": {
+          "shape": [
+            13557,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "y_true": {
+          "shape": [
+            13557,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "te_idx": {
+          "shape": [
+            13557
+          ],
+          "dtype": "int64"
+        }
+      },
+      "src_bytes": 4881520,
+      "dst_bytes": 3657828,
+      "src_md5": "234ccd17a63206eaeb255626295fabb5",
+      "dst_md5": "23927dcab8c62aa35264f6111bd4428f"
+    },
+    "test_preds_DimeNet.npz": {
+      "arrays": {
+        "preds": {
+          "shape": [
+            3,
+            13557,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "ens_mean": {
+          "shape": [
+            13557,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "y_true": {
+          "shape": [
+            13557,
+            8
+          ],
+          "dtype": "float32"
+        },
+        "te_idx": {
+          "shape": [
+            13557
+          ],
+          "dtype": "int64"
+        }
+      },
+      "src_bytes": 2278576,
+      "dst_bytes": 2082330,
+      "src_md5": "43a353317e9428eecfe87f5cdf130332",
+      "dst_md5": "dd6976b3a204d14f456198eed91334d9"
+    },
+    "crossfunct_A_preds.npz": {
+      "arrays": {
+        "y_true": {
+          "shape": [
+            73438,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "preds": {
+          "shape": [
+            9,
+            73438,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "ens_mean": {
+          "shape": [
+            73438,
+            7
+          ],
+          "dtype": "float32"
+        }
+      },
+      "src_bytes": 22619660,
+      "dst_bytes": 19970862,
+      "src_md5": "05583a062db8289c5da1cae5b26f48f6",
+      "dst_md5": "7ce5fc5084b7163f3201ad2563a9348a"
+    }
+  }
+}

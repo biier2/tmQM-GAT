@@ -1,0 +1,32 @@
+{
+  "xai": {
+    "generator": "np.random.RandomState(123).choice(90377, 2000, replace=False)",
+    "n": 2000,
+    "domain_n": 90377
+  },
+  "ablation": {
+    "source": "D:\\ml\\paper\\draft\\round7\\ablation_weight_recompute_r17q3.json",
+    "cohort_n": 27993,
+    "seeds": [
+      42,
+      123,
+      456
+    ],
+    "targets": [
+      "gap",
+      "homo",
+      "lumo",
+      "dipole",
+      "metal_charge",
+      "E_elec",
+      "E_disp",
+      "polarizability"
+    ],
+    "mean_diff": -0.004390781124432881,
+    "sd_ddof0": 0.018967958835482832,
+    "weight_norm_range": [
+      0.734320878982544,
+      1.1959400177001953
+    ]
+  }
+}

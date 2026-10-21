@@ -1,0 +1,14 @@
+cohort,quantity,value
+main_90377,n_complexes,90377.000000000000
+main_90377,raw_min,3.091542554097
+main_90377,raw_max,18.161582136296
+main_90377,clipped_min,3.000000000000
+main_90377,clipped_max,3.000000000000
+main_90377,normalized_min,1.000000000000
+main_90377,normalized_max,1.000000000000
+ablation_27993,n_complexes,27993.000000000000
+ablation_27993,raw_min,3.070057413999
+ablation_27993,raw_max,5.000000000000
+ablation_27993,normalized_min,0.734320878983
+ablation_27993,normalized_max,1.195940017700
+ablation_27993,n_weight_neq_1,27993.000000000000

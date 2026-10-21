@@ -1,0 +1,78 @@
+{
+  "source_md5": {
+    "tmQM_y.csv": {
+      "expected": "f8eeb967b71938f1a8c1d44be8f1f043",
+      "actual": "f8eeb967b71938f1a8c1d44be8f1f043",
+      "ok": true
+    },
+    "tmQM_X1.xyz.gz": {
+      "expected": "f273275f288b375ab20b2f9d5c5c227f",
+      "actual": "f273275f288b375ab20b2f9d5c5c227f",
+      "ok": true
+    },
+    "tmQM_X2.xyz.gz": {
+      "expected": "563be6efff4d99b64e3590caeb5c5699",
+      "actual": "563be6efff4d99b64e3590caeb5c5699",
+      "ok": true
+    },
+    "tmQM_X3.xyz.gz": {
+      "expected": "c4a9f3c48c47792086c0532d31eb6d6a",
+      "actual": "c4a9f3c48c47792086c0532d31eb6d6a",
+      "ok": true
+    },
+    "tmQM_X1.BO.gz": {
+      "expected": "cf64d4f145f649bc68c18e6f8704c8d1",
+      "actual": "cf64d4f145f649bc68c18e6f8704c8d1",
+      "ok": true
+    },
+    "tmQM_X2.BO.gz": {
+      "expected": "00b561bf31e2c967e3d919059701b936",
+      "actual": "00b561bf31e2c967e3d919059701b936",
+      "ok": true
+    },
+    "tmQM_X3.BO.gz": {
+      "expected": "ea4bd75955d596224145b8e4cf4ebbe5",
+      "actual": "ea4bd75955d596224145b8e4cf4ebbe5",
+      "ok": true
+    }
+  },
+  "n_csv_rows": 108541,
+  "n_has_tm": 108116,
+  "n_parseable": 100849,
+  "n_parseable_with_bo": 100849,
+  "n_retained": 90377,
+  "counts_by_reason": {
+    "isomorphism_failed": 10356,
+    "no_TM": 425,
+    "unparseable_SMILES": 7383
+  },
+  "csd_code_mismatch_retained_vs_pt": 0,
+  "csd_code_mismatch_xyz_vs_csv_all": 0,
+  "rdkit_training_stack": "2024.03.6",
+  "parse_status_counts": {
+    "0": 100849,
+    "1": 7692
+  },
+  "rest_chain": {
+    "108541_minus_no_tm": 108116,
+    "minus_unparseable": 100733
+  },
+  "baseline_split": {
+    "te": 13557,
+    "cv": 76820,
+    "folds": [
+      [
+        51213,
+        25607
+      ],
+      [
+        51213,
+        25607
+      ],
+      [
+        51214,
+        25606
+      ]
+    ]
+  }
+}

@@ -1,0 +1,373 @@
+{
+  "source": "D:\\ml\\tmqm_GAT\\baselines\\server_package\\server_case_study.py",
+  "rdkit_version": "2026.03.3",
+  "protocol": "AddHs -> EmbedMolecule(randomSeed=42, maxAttempts=200) -> MMFFOptimizeMolecule -> RemoveHs",
+  "n_candidates": 18,
+  "n_written": 18,
+  "n_failures": 0,
+  "mmff_return_codes": [
+    -1
+  ],
+  "molecules": [
+    {
+      "name": "Zr-cat1",
+      "smiles": "Br[Zr]([CH-]1C=CC=C1)([CH-]1C=CC=C1)Br",
+      "canonical_smiles": "[Br][Zr]([Br])(<-[cH-]1cccc1)<-[cH-]1cccc1",
+      "formula": "C10H10Br2Zr-2",
+      "n_heavy_atoms": 13,
+      "n_atoms_with_h": 23,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -3.7715415734059037,
+        -0.64024423428071,
+        -1.3457568240818953
+      ],
+      "coord_max": [
+        3.678951653823018,
+        2.123758269996162,
+        2.0505439449787004
+      ]
+    },
+    {
+      "name": "Zr-cat2",
+      "smiles": "Br[Zr]([CH-]1C=CC=C1)([CH-]1C=CC=C1)I",
+      "canonical_smiles": "[Br][Zr]([I])(<-[cH-]1cccc1)<-[cH-]1cccc1",
+      "formula": "C10H10BrIZr-2",
+      "n_heavy_atoms": 13,
+      "n_atoms_with_h": 23,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -3.760844560527047,
+        -0.6534141425849784,
+        -1.3076605279552325
+      ],
+      "coord_max": [
+        3.716877115067602,
+        2.2381433241246467,
+        2.1468335246645043
+      ]
+    },
+    {
+      "name": "Zr-cat3",
+      "smiles": "I[Zr]([CH-]1C=CC=C1)([CH-]1C=CC=C1)I",
+      "canonical_smiles": "[I][Zr]([I])(<-[cH-]1cccc1)<-[cH-]1cccc1",
+      "formula": "C10H10I2Zr-2",
+      "n_heavy_atoms": 13,
+      "n_atoms_with_h": 23,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -3.8143288981736707,
+        -0.6323352197988458,
+        -1.2003258119880917
+      ],
+      "coord_max": [
+        3.8202084156896765,
+        2.439557350589091,
+        2.309043146460276
+      ]
+    },
+    {
+      "name": "Ni-cat1",
+      "smiles": "Br[Ni]1([N]2=C3C4=[N]1C=CC(C5=CC=C(C(F)(F)F)C=C5)=C4C=CC3=C(C6=CC=C(C(F)(F)F)C=C6)C=C2)Br",
+      "canonical_smiles": "FC(F)(F)c1ccc(-c2cc[n]3->[Ni]([Br])([Br])<-[n]4ccc(-c5ccc(C(F)(F)F)cc5)c5ccc2c3c54)cc1",
+      "formula": "C26H14Br2F6N2Ni",
+      "n_heavy_atoms": 37,
+      "n_atoms_with_h": 51,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -7.305912232599615,
+        -6.1603651800832715,
+        -0.8694911198205706
+      ],
+      "coord_max": [
+        7.376261941711012,
+        4.3975459692431516,
+        2.3822706412163606
+      ]
+    },
+    {
+      "name": "Ni-cat2",
+      "smiles": "Br[Ni]1[N]2=C3C4=[N]1C=CC(C5=CC=C(C(F)(F)F)C=C5)=C4C=CC3=C(C6=CC=C(C(F)(F)F)C=C6)C=C2",
+      "canonical_smiles": "FC(F)(F)c1ccc(-c2cc[n]3->[Ni]([Br])<-[n]4ccc(-c5ccc(C(F)(F)F)cc5)c5ccc2c3c54)cc1",
+      "formula": "C26H14BrF6N2Ni",
+      "n_heavy_atoms": 36,
+      "n_atoms_with_h": 50,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -7.098876612849394,
+        -5.061884487915368,
+        -1.2132538076743453
+      ],
+      "coord_max": [
+        7.3206010341614,
+        4.534323111746636,
+        2.7156202452377496
+      ]
+    },
+    {
+      "name": "Ni-cat3",
+      "smiles": "I[Ni]1[N]2=C3C4=[N]1C=CC(C5=CC=C(C(F)(F)F)C=C5)=C4C=CC3=C(C6=CC=C(C(F)(F)F)C=C6)C=C2",
+      "canonical_smiles": "FC(F)(F)c1ccc(-c2cc[n]3->[Ni]([I])<-[n]4ccc(-c5ccc(C(F)(F)F)cc5)c5ccc2c3c54)cc1",
+      "formula": "C26H14F6IN2Ni",
+      "n_heavy_atoms": 36,
+      "n_atoms_with_h": 50,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -7.142787442950482,
+        -5.0887090935766395,
+        -1.1596428167548547
+      ],
+      "coord_max": [
+        7.3139652920031635,
+        4.5023893590885775,
+        2.7802118806471254
+      ]
+    },
+    {
+      "name": "Ni-cat4",
+      "smiles": "Br[Ni]1([N]2=C(C3=[N]1C=CC(C(C)(C)C)=C3)C=C(C(C)(C)C)C=C2)Br",
+      "canonical_smiles": "CC(C)(C)c1cc[n]2->[Ni]([Br])([Br])<-[n]3ccc(C(C)(C)C)cc3-c2c1",
+      "formula": "C18H24Br2N2Ni",
+      "n_heavy_atoms": 23,
+      "n_atoms_with_h": 47,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -5.1631825743804125,
+        -3.7537251104433826,
+        -4.710288673209585
+      ],
+      "coord_max": [
+        4.843360327834138,
+        1.7936060815062336,
+        2.307961799222166
+      ]
+    },
+    {
+      "name": "Ni-cat5",
+      "smiles": "CO1CCO2CCO(C)[Ni]21(Br)Br",
+      "canonical_smiles": "C[O]1CC[O]2CC[O](C)->[Ni]<-1<-2([Br])[Br]",
+      "formula": "C6H14Br2NiO3",
+      "n_heavy_atoms": 12,
+      "n_atoms_with_h": 26,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -2.4902012367782316,
+        -1.7990743606016695,
+        -2.247131844655049
+      ],
+      "coord_max": [
+        2.40401694471786,
+        1.7393401087911575,
+        2.2142246237071257
+      ]
+    },
+    {
+      "name": "Pd-cat1",
+      "smiles": "CC1(C)C2=C(OC3=C4C=CC=C13)C([P]([Pd][P](C5=CC=CC=C5)4C6=CC=CC=C6)(C7=CC=CC=C7)C8=CC=CC=C8)=CC=C2",
+      "canonical_smiles": "CC1(C)c2cccc3c2Oc2c1cccc2[P](c1ccccc1)(c1ccccc1)[Pd][P]3(c1ccccc1)c1ccccc1",
+      "formula": "C39H32OP2Pd",
+      "n_heavy_atoms": 43,
+      "n_atoms_with_h": 75,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -4.756223276008467,
+        -3.842687447502869,
+        -4.296453493390466
+      ],
+      "coord_max": [
+        4.182065326596738,
+        5.056797175398736,
+        4.273057902790139
+      ]
+    },
+    {
+      "name": "Pd-cat2",
+      "smiles": "FC1(F)OC2=C(O1)[C@@]([C@@]3=C(OC(F)(F)O4)C4=CC=C3[P]([Pd][P](C5=CC=CC=C5)6C7=CC=CC=C7)(C8=CC=CC=C8)C9=CC=CC=C9)=C6C=C2",
+      "canonical_smiles": "FC1(F)Oc2ccc3c(c2O1)-c1c(ccc2c1OC(F)(F)O2)[P](c1ccccc1)(c1ccccc1)[Pd][P]3(c1ccccc1)c1ccccc1",
+      "formula": "C38H24F4O4P2Pd",
+      "n_heavy_atoms": 49,
+      "n_atoms_with_h": 73,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -4.734202166981816,
+        -3.940051322324877,
+        -4.024562853785775
+      ],
+      "coord_max": [
+        5.023687374510425,
+        6.201781646619075,
+        4.190666822877733
+      ]
+    },
+    {
+      "name": "Co-cat1",
+      "smiles": "CC1=O[Co]2(OC(C)=O2)O1",
+      "canonical_smiles": "CC1[O][Co]2([O]C(C)=[O]->2)<-[O]=1",
+      "formula": "C4H6CoO4",
+      "n_heavy_atoms": 9,
+      "n_atoms_with_h": 15,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -3.8085438331380104,
+        -0.9761949666566987,
+        -0.7553519406834559
+      ],
+      "coord_max": [
+        3.8101671976217273,
+        0.8123659096676953,
+        1.0504096740753446
+      ]
+    },
+    {
+      "name": "Fe-cat1",
+      "smiles": "O=[N+]1C(C)(C)CCCC1(C)C.Cl[Fe](Cl)Cl",
+      "canonical_smiles": "CC1(C)CCCC(C)(C)[N+]1=O.[Cl][Fe]([Cl])[Cl]",
+      "formula": "C9H18Cl3FeNO+",
+      "n_heavy_atoms": 15,
+      "n_atoms_with_h": 33,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -2.5992238422050464,
+        -1.4668924855372227,
+        -1.413969912913382
+      ],
+      "coord_max": [
+        1.9899466915188802,
+        1.961181317990319,
+        1.6963268043214719
+      ]
+    },
+    {
+      "name": "Fe-cat2",
+      "smiles": "O=[N+]1C(C)(C)CCCC1(C)C.Cl[Fe](Cl)Cl.O[N+](=O)[O-]",
+      "canonical_smiles": "CC1(C)CCCC(C)(C)[N+]1=O.O=[N+]([O-])O.[Cl][Fe]([Cl])[Cl]",
+      "formula": "C9H19Cl3FeN2O4+",
+      "n_heavy_atoms": 19,
+      "n_atoms_with_h": 38,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -2.5992238422050464,
+        -1.4668924855372227,
+        -1.413969912913382
+      ],
+      "coord_max": [
+        1.9899466915188802,
+        1.961181317990319,
+        1.6963268043214719
+      ]
+    },
+    {
+      "name": "cis-PdCl2(PPh3)2",
+      "smiles": "Cl[Pd@SP1](Cl)(P(c1ccccc1)(c2ccccc2)c3ccccc3)P(c4ccccc4)(c5ccccc5)c6ccccc6",
+      "canonical_smiles": "[Cl][Pd@SP1]([Cl])([PH](c1ccccc1)(c1ccccc1)c1ccccc1)[PH](c1ccccc1)(c1ccccc1)c1ccccc1",
+      "formula": "C36H32Cl2P2Pd",
+      "n_heavy_atoms": 41,
+      "n_atoms_with_h": 73,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -5.321845517061988,
+        -3.931357139003999,
+        -3.4313766372499015
+      ],
+      "coord_max": [
+        5.426284269934352,
+        4.6143487506043765,
+        3.3783762484945434
+      ]
+    },
+    {
+      "name": "trans-PdCl2(PPh3)2",
+      "smiles": "Cl[Pd@SP2](Cl)(P(c1ccccc1)(c2ccccc2)c3ccccc3)P(c4ccccc4)(c5ccccc5)c6ccccc6",
+      "canonical_smiles": "[Cl][Pd@SP2]([Cl])([PH](c1ccccc1)(c1ccccc1)c1ccccc1)[PH](c1ccccc1)(c1ccccc1)c1ccccc1",
+      "formula": "C36H32Cl2P2Pd",
+      "n_heavy_atoms": 41,
+      "n_atoms_with_h": 73,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -5.103396556194915,
+        -3.743394639528087,
+        -3.8037443641108246
+      ],
+      "coord_max": [
+        5.136206862896428,
+        4.516812830719598,
+        2.8316442597754916
+      ]
+    },
+    {
+      "name": "Rh(CO)2(acac)",
+      "smiles": "[C-]#[O+][Rh]1([C-]#[O+])O=C(C)[CH]C(C)=[O]1",
+      "canonical_smiles": "[C-]#[O+]->[Rh]1(<-[C-]#[O+])<-[O]=C(C)[CH]C(C)=[O]->1",
+      "formula": "C7H7O4Rh",
+      "n_heavy_atoms": 12,
+      "n_atoms_with_h": 19,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -2.1632769493114763,
+        -1.5180353289423112,
+        -2.4375072995603717
+      ],
+      "coord_max": [
+        2.1986852810702677,
+        3.5531685448278685,
+        1.834996811748543
+      ]
+    },
+    {
+      "name": "Ni(IMes)2Cl2",
+      "smiles": "Cl[Ni](Cl)([C]1N(c2c(C)cc(C)cc2C)C=CN1c3c(C)cc(C)cc3C)[C]4N(c5c(C)cc(C)cc5C)C=CN4c6c(C)cc(C)cc6C",
+      "canonical_smiles": "Cc1cc(C)c(N2C=CN(c3c(C)cc(C)cc3C)[C]2[Ni]([Cl])([Cl])[C]2N(c3c(C)cc(C)cc3C)C=CN2c2c(C)cc(C)cc2C)c(C)c1",
+      "formula": "C42H48Cl2N4Ni",
+      "n_heavy_atoms": 49,
+      "n_atoms_with_h": 97,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -4.746231229678354,
+        -5.90946905533509,
+        -4.09964732448275
+      ],
+      "coord_max": [
+        5.1922906998651435,
+        6.202798353701105,
+        5.273618081332152
+      ]
+    },
+    {
+      "name": "Pt(dppe)Cl2",
+      "smiles": "Cl[Pt](Cl)([P](c1ccccc1)(c2ccccc2)CC[P](c3ccccc3)(c4ccccc4))",
+      "canonical_smiles": "[Cl][Pt]([Cl])[P](CCP(c1ccccc1)c1ccccc1)(c1ccccc1)c1ccccc1",
+      "formula": "C26H24Cl2P2Pt",
+      "n_heavy_atoms": 31,
+      "n_atoms_with_h": 55,
+      "embed_rc": 0,
+      "mmff_rc": -1,
+      "coord_min": [
+        -4.734017596577209,
+        -3.566146029394299,
+        -4.39319283626681
+      ],
+      "coord_max": [
+        4.798516352035542,
+        3.1597683112349246,
+        4.029663086250227
+      ]
+    }
+  ]
+}

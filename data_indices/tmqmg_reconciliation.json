@@ -1,0 +1,98 @@
+{
+  "source_csv": "D:\\ml\\chem_ml5\\tmQMg_properties_and_targets.csv",
+  "npz": "D:\\ml\\chem_ml5\\crossfunct_A_preds.npz",
+  "n_csv_rows": 74547,
+  "n_valid_smiles": 73443,
+  "n_after_nan_drop": 73443,
+  "n_graphs": 73438,
+  "npz_shapes": {
+    "y_true": [
+      73438,
+      7
+    ],
+    "preds": [
+      9,
+      73438,
+      7
+    ],
+    "ens_mean": [
+      73438,
+      7
+    ]
+  },
+  "rdkit_version": "2026.03.3",
+  "parse_failures": [
+    {
+      "df_valid_row": 1047,
+      "csv_row": 1059,
+      "id": "AKAGEZ",
+      "smiles": "CC(C)N(c1c(N(C(C)C)C(C)C)c1=[PH+](=S)(c1ccccc1)->[W](<-[C-]#[O+])(<-[C-]#[O+])(<-[C-]#[O+])(<-[C-]#[O+])<-[C-]#[O+])C(C)C"
+    },
+    {
+      "df_valid_row": 27949,
+      "csv_row": 28351,
+      "id": "JULMIO",
+      "smiles": "CN(C)C(N(C)C)=[PH+](=S->[W](<-[C-]#[O+])(<-[C-]#[O+])(<-[C-]#[O+])(<-[C-]#[O+])<-[C-]#[O+])C([Si](C)(C)C)[Si](C)(C)C"
+    },
+    {
+      "df_valid_row": 28261,
+      "csv_row": 28671,
+      "id": "KADJIK",
+      "smiles": "O=S1(=O)[O-]->[Mn-]23(<-O=[As+2](O)(O)c4ccccc41)(<-n1ccccc1-c1ccccn->21)<-n1ccccc1-c1ccccn->31"
+    },
+    {
+      "df_valid_row": 72345,
+      "csv_row": 73423,
+      "id": "ZIMYED",
+      "smiles": "CC(C)[As]1(c2ccccc2C2=[As+2](C(C)C)(C(C)C)c3ccccc3[C-]2->[Co+]<-1(<-[C-]#[O+])(<-[C-]#[O+])<-[C-]#[O+])C(C)C"
+    },
+    {
+      "df_valid_row": 72524,
+      "csv_row": 73605,
+      "id": "ZIWFOA",
+      "smiles": "[BH+][BH-]1[BH-]2[BH-]=[As+2]3->[Pd+2]45(<-[C-]#[N+]C(C)(C)C)(<-B6[BH-]([BH-]1[As+2]#36)[B-]->4(C#N)=[BH-]->52)<-P(C)(C)c1ccccc1"
+    }
+  ],
+  "y_true_matches_csv": true,
+  "props": [
+    "tzvp_homo_lumo_gap",
+    "tzvp_homo_energy",
+    "tzvp_lumo_energy",
+    "tzvp_dipole_moment",
+    "tzvp_electronic_energy",
+    "tzvp_dispersion_energy",
+    "polarisability"
+  ],
+  "metal_center_counts": {
+    "Pd": 8069,
+    "Pt": 6375,
+    "Ni": 6294,
+    "Ru": 6244,
+    "Zn": 5424,
+    "Fe": 3610,
+    "Ir": 3589,
+    "Au": 3303,
+    "Rh": 3178,
+    "Re": 3177,
+    "Mo": 3065,
+    "Co": 2660,
+    "W": 2486,
+    "Ti": 2217,
+    "Cu": 2031,
+    "Zr": 1739,
+    "Cr": 1626,
+    "Mn": 1390,
+    "Cd": 1296,
+    "Ag": 1027,
+    "Hg": 988,
+    "V": 980,
+    "Os": 671,
+    "Ta": 471,
+    "Hf": 342,
+    "Y": 324,
+    "Nb": 314,
+    "Tc": 221,
+    "Sc": 182,
+    "La": 145
+  }
+}
