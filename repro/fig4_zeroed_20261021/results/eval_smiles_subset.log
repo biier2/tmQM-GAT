@@ -1,0 +1,5 @@
+Subset: 5,000 complexes from out/fig4_zeroed_results.npz
+Built 5,000 SMILES graphs
+Loaded tmqm_gat_best_backup.pt
+SMILES GAT on held-out subset: mean=0.219 mHa  <0.001=99.68%  <0.01=100.00%  R2=1.0000
+Saved out/fig4_smiles_results_subset.npz (115,715 bytes)

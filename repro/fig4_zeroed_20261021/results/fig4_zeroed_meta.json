@@ -1,0 +1,106 @@
+{
+  "tag": "fig4_zeroed",
+  "created": "2026-10-21 18:01:42",
+  "purpose": "Fig.4 11d/23d single GAT; geometry channels zeroed during training, validation and test (id57)",
+  "data": "new_domain_iso.pt",
+  "split": "data_indices/ensemble_split_new.npz",
+  "split_sizes": {
+    "train": 51214,
+    "val": 25607,
+    "test": 13556
+  },
+  "zeroed": {
+    "node_dims": [
+      8,
+      11
+    ],
+    "edge_dims": [
+      6,
+      23
+    ],
+    "meaning": "BO node stats (8:11) and 16 RBF + 1 WBO edge channels (6:23) set to 0"
+  },
+  "seed": 42,
+  "epochs_run": 164,
+  "best_epoch": 124,
+  "best_val_loss": 0.11139141023159027,
+  "model": {
+    "node_dim": 11,
+    "edge_dim": 23,
+    "hidden": 384,
+    "n_layers": 5,
+    "heads": 12,
+    "dropout": 0.1,
+    "output_dim": 8,
+    "params": 1311404
+  },
+  "optim": {
+    "name": "AdamW",
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "scheduler": "CosineAnnealingWarmRestarts(T_0=50,T_mult=2,eta_min=1e-6)",
+    "batch_size": 256,
+    "max_epochs": 200,
+    "early_stopping_patience": 40,
+    "grad_clip": 1.0,
+    "amp": true,
+    "metal_weight": "max(0.5,min(3.0,sqrt(total_c/c))), mean-normalised"
+  },
+  "targets": [
+    "gap",
+    "homo",
+    "lumo",
+    "dipole",
+    "metal_charge",
+    "E_elec",
+    "E_disp",
+    "polarizability"
+  ],
+  "y_mean": [
+    0.1090788021683693,
+    -0.1980229616165161,
+    -0.08894416689872742,
+    5.781483173370361,
+    0.0990518108010292,
+    -2955.914794921875,
+    -0.13893961906433105,
+    390.28546142578125
+  ],
+  "y_std": [
+    0.03291625529527664,
+    0.054441772401332855,
+    0.054910462349653244,
+    3.832345962524414,
+    0.7709329724311829,
+    1584.126220703125,
+    0.06717080622911453,
+    145.91268920898438
+  ],
+  "val_mae": {
+    "gap": 0.010204385966062546,
+    "homo": 0.008197150193154812,
+    "lumo": 0.009456833824515343,
+    "dipole": 1.5130451917648315,
+    "metal_charge": 0.0911654457449913,
+    "E_elec": 257.18353271484375,
+    "E_disp": 0.01403084397315979,
+    "polarizability": 29.848703384399414
+  },
+  "val_r2": {
+    "gap": 0.8185151815414429,
+    "homo": 0.9415903091430664,
+    "lumo": 0.9277586936950684,
+    "dipole": 0.658577561378479,
+    "metal_charge": 0.9722962975502014,
+    "E_elec": 0.9496385455131531,
+    "E_disp": 0.9236039519309998,
+    "polarizability": 0.9318109750747681
+  },
+  "env": {
+    "python": "3.12.13",
+    "torch": "2.12.1+cu130",
+    "numpy": "2.5.0",
+    "cuda": "13.0",
+    "gpu": "NVIDIA GeForce RTX 5070 Ti"
+  }
+}

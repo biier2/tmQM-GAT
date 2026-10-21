@@ -1,0 +1,73 @@
+nohup: ignoring input
+Device: cuda | AMP: True
+GPU: NVIDIA GeForce RTX 5070 Ti  VRAM 15.5 GB
+Loading new_domain_iso.pt ...
+N=90,377  loaded in 23.6s
+Data md5: 3035057aeb8638680d676283ace2194b
+Split file: ensemble_split_new.npz (md5 a24638d8f0ba08e57832d5e64dacfd9e)
+Split: train=51,214  val=25,607  test=13,556
+Built 76,821 zeroed 11d/23d graphs in 3.2s
+Metal weight map: {21: 3.0, 22: 3.0, 23: 3.0, 24: 3.0, 25: 3.0, 26: 3.0, 27: 3.0, 28: 3.0, 29: 3.0, 30: 3.0, 33: 3.0, 34: 3.0, 35: 3.0, 39: 3.0, 40: 3.0, 41: 3.0, 42: 3.0, 43: 3.0, 44: 3.0, 45: 3.0, 46: 3.0, 47: 3.0, 48: 3.0, 53: 3.0, 72: 3.0, 73: 3.0, 74: 3.0, 75: 3.0, 76: 3.0, 77: 3.0, 78: 3.0, 79: 3.0, 80: 3.0}
+Sample weights: mean=1.000 max=1.00
+Model: 11d/23d GAT x5 x384d x12 heads, dropout=0.1, params=1,311,404
+Ep   1/200 | tr 0.66980 | va 0.88815 | lr 1.00e-03 | pat 0
+Ep   2/200 | tr 0.48524 | va 0.88778 | lr 9.98e-04 | pat 0
+Ep   3/200 | tr 0.41661 | va 0.79518 | lr 9.94e-04 | pat 0
+Ep   4/200 | tr 0.35071 | va 0.57368 | lr 9.89e-04 | pat 0
+Ep   5/200 | tr 0.30905 | va 0.47635 | lr 9.82e-04 | pat 0
+Ep   6/200 | tr 0.28232 | va 0.35872 | lr 9.73e-04 | pat 0
+Ep   8/200 | tr 0.24504 | va 0.33729 | lr 9.49e-04 | pat 0
+Ep   9/200 | tr 0.22797 | va 0.31924 | lr 9.35e-04 | pat 0
+Ep  10/200 | tr 0.21846 | va 0.35030 | lr 9.19e-04 | pat 1
+Ep  11/200 | tr 0.20720 | va 0.23150 | lr 9.01e-04 | pat 0
+Ep  14/200 | tr 0.17806 | va 0.21224 | lr 8.38e-04 | pat 0
+Ep  17/200 | tr 0.16114 | va 0.21150 | lr 7.64e-04 | pat 0
+Ep  19/200 | tr 0.15337 | va 0.17825 | lr 7.09e-04 | pat 0
+Ep  20/200 | tr 0.14902 | va 0.17125 | lr 6.80e-04 | pat 0
+Ep  23/200 | tr 0.13962 | va 0.16442 | lr 5.90e-04 | pat 0
+Ep  27/200 | tr 0.12724 | va 0.15855 | lr 4.65e-04 | pat 0
+Ep  30/200 | tr 0.11962 | va 0.15352 | lr 3.73e-04 | pat 0
+Ep  33/200 | tr 0.11307 | va 0.14919 | lr 2.85e-04 | pat 0
+Ep  34/200 | tr 0.11164 | va 0.14586 | lr 2.57e-04 | pat 0
+Ep  35/200 | tr 0.11044 | va 0.14490 | lr 2.30e-04 | pat 0
+Ep  40/200 | tr 0.10234 | va 0.14755 | lr 1.14e-04 | pat 5
+Ep  41/200 | tr 0.10145 | va 0.13864 | lr 9.45e-05 | pat 0
+Ep  50/200 | tr 0.09671 | va 0.14254 | lr 1.80e-06 | pat 9
+Ep  60/200 | tr 0.11897 | va 0.18085 | lr 9.80e-04 | pat 19
+Ep  64/200 | tr 0.11286 | va 0.13800 | lr 9.58e-04 | pat 0
+Ep  67/200 | tr 0.11050 | va 0.13162 | lr 9.37e-04 | pat 0
+Ep  70/200 | tr 0.10788 | va 0.15978 | lr 9.13e-04 | pat 3
+Ep  73/200 | tr 0.10197 | va 0.12774 | lr 8.84e-04 | pat 0
+Ep  76/200 | tr 0.09913 | va 0.12697 | lr 8.53e-04 | pat 0
+Ep  80/200 | tr 0.09663 | va 0.14712 | lr 8.05e-04 | pat 4
+Ep  84/200 | tr 0.09576 | va 0.12499 | lr 7.53e-04 | pat 0
+Ep  90/200 | tr 0.08671 | va 0.12665 | lr 6.68e-04 | pat 6
+Ep  95/200 | tr 0.08276 | va 0.12453 | lr 5.93e-04 | pat 0
+Ep  96/200 | tr 0.08137 | va 0.11774 | lr 5.77e-04 | pat 0
+Ep 100/200 | tr 0.08066 | va 0.13158 | lr 5.15e-04 | pat 4
+Ep 109/200 | tr 0.07386 | va 0.11701 | lr 3.75e-04 | pat 0
+Ep 110/200 | tr 0.07317 | va 0.12435 | lr 3.60e-04 | pat 1
+Ep 111/200 | tr 0.07195 | va 0.11640 | lr 3.45e-04 | pat 0
+Ep 118/200 | tr 0.06873 | va 0.11617 | lr 2.45e-04 | pat 0
+Ep 120/200 | tr 0.06766 | va 0.11973 | lr 2.19e-04 | pat 2
+Ep 121/200 | tr 0.06719 | va 0.11538 | lr 2.06e-04 | pat 0
+Ep 123/200 | tr 0.06639 | va 0.11442 | lr 1.81e-04 | pat 0
+Ep 124/200 | tr 0.06576 | va 0.11139 | lr 1.69e-04 | pat 0
+Ep 130/200 | tr 0.06458 | va 0.11545 | lr 1.05e-04 | pat 6
+Ep 140/200 | tr 0.06199 | va 0.11494 | lr 3.02e-05 | pat 16
+Ep 150/200 | tr 0.06104 | va 0.11367 | lr 1.22e-06 | pat 26
+Ep 160/200 | tr 0.08595 | va 0.12860 | lr 9.95e-04 | pat 36
+Early stop at epoch 164
+Training done in 22.7 min; best epoch 124, best val loss 0.111391
+Validation per-target MAE / R2:
+  gap            MAE    0.0102  R2   0.8185
+  homo           MAE    0.0082  R2   0.9416
+  lumo           MAE    0.0095  R2   0.9278
+  dipole         MAE    1.5130  R2   0.6586
+  metal_charge   MAE    0.0912  R2   0.9723
+  E_elec         MAE  257.1835  R2   0.9496
+  E_disp         MAE    0.0140  R2   0.9236
+  polarizability MAE   29.8487  R2   0.9318
+  mean R2 = 0.8905
+Saved out/fig4_zeroed_best.pt (5,257,661 bytes)
+Saved fig4_zeroed_meta.json / fig4_zeroed_history.json

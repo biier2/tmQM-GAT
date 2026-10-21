@@ -24,6 +24,7 @@ code in this repository.
 | `preds/crossfunct_A_preds.npz` | Predictions of the SMILES-only ensemble on the 73,438-complex tmQMg transfer set. |
 | `preds/manifest.json` | Shapes, dtypes, sizes and md5 values of every prediction archive. |
 | `repro/review_package_20261021/` | The `export_*.py` scripts that generated the files above, the two `verify_*.py` checks, and a README with the index conventions and known limitations. |
+| `repro/fig4_zeroed_20261021/` | Retraining package for the revised Figure 4: zeroed 11d/23d model code, production training/evaluation logs, result archives and expected values. The two single-model checkpoints used by the figure are release assets. |
 
 A checksum list for every delivered file is in
 `repro/review_package_20261021/MANIFEST.md5` (paths relative to the repository
@@ -68,13 +69,17 @@ the `v1.0-review` GitHub release, not in the git history:
 | `ensemble_checkpoint_D_11d23d.pt` | 47 MB (nine members) |
 | `ensemble_checkpoint_SchNet.pt` | 96 MB (nine members) |
 | `ensemble_checkpoint_DimeNet.pt` | 23 MB (three members) |
+| `fig4_zeroed_best.pt` | 5.3 MB (single 11d/23d zero-padded model, revised Figure 4) |
+| `tmqm_gat_best_backup.pt` | 5.2 MB (single SMILES-only model, Figure 4 panel c) |
 | `dft_logs_12.zip` | twelve Gaussian 16 C.01 logs, ~214 MB uncompressed |
 
 The ~1.1 GB domain tensor `new_domain_iso.pt` is **not** redistributed:
 `retained_ids.csv` plus `atom_maps.npz` contain the indexing needed to rebuild
-it with `gat/` scripts. See `repro/review_package_20261021/LARGE_FILES.md` for
-per-file md5 values and notes on the DFT logs (including the naming of
-`Pd-cat1-2.log` and the two Ni(IMes)2Cl2 spin states).
+it with `gat/` scripts. The rebuild entry point and the frozen split used by the
+revised Figure 4 are documented in `repro/fig4_zeroed_20261021/README.md`. See
+`repro/review_package_20261021/LARGE_FILES.md` for per-file md5 values and notes
+on the DFT logs (including the naming of `Pd-cat1-2.log` and the two
+Ni(IMes)2Cl2 spin states).
 
 ## Regeneration
 

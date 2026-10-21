@@ -1,9 +1,11 @@
 # Large files: inventory and hosting plan
 
-The files below are referenced by the manuscript but are too large for the git
-history. They are distributed as assets of the `v1.0-review` GitHub release;
-the repository is public at submission. After acceptance the same files will be
-archived in a DOI-bearing record. None of them is committed to the repository.
+The files below are referenced by the manuscript and are distributed as assets
+of the `v1.0-review` GitHub release; the repository is public at submission.
+After acceptance the same files will be archived in a DOI-bearing record. None
+of them is committed to the repository. The last two are small single-model
+checkpoints included as assets so that the revised Figure 4 package is
+reproducible without storing weights in git.
 
 Checksums are md5, matching the rest of the project's records.
 
@@ -17,8 +19,10 @@ Checksums are md5, matching the rest of the project's records.
 | `ensemble_checkpoint_D_11d23d.pt` | 47,330,229 | 9 | `479d3b58c8d30460a430bf33ad2a46db` | variant D, full 3D (11d/23d) |
 | `ensemble_checkpoint_SchNet.pt` | 96,122,164 | 9 | `15661382cb757bc25ed7019893d9cd60` | SchNet baseline ensemble |
 | `ensemble_checkpoint_DimeNet.pt` | 22,888,933 | 3 | `5614a3be30227404208e0574d0889504` | DimeNet++ baseline, fold 0, seeds 42/123/456 (1,894,790 parameters per member) |
+| `fig4_zeroed_best.pt` | 5,257,661 | 1 | `0a3872f6090218612a6ab4543728fd5a` | revised Figure 4, zero-padded 11d/23d single model (1,311,404 parameters) |
+| `tmqm_gat_best_backup.pt` | 5,249,273 | 1 | `7f8b9e43a11d8c45c3945c498625266f` | deployed SMILES-only single model (8d/6d), Figure 4 panel (c) |
 
-Total of the six checkpoint files: 308,166,581 bytes (294 MiB).
+Total of the eight checkpoint files: 318,673,515 bytes (304 MiB).
 
 ## DFT reference logs
 
@@ -61,4 +65,4 @@ Notes for the record description:
 
 | file | bytes | md5 | note |
 |---|---:|---|---|
-| `new_domain_iso.pt` | 1,107,170,889 | `3035057aeb8638680d676283ace2194b` | 90,377 graphs, labels, `csv_idx`, `te_idx`. Optional: `retained_ids.csv` + `atom_maps.npz` already let a reader rebuild the indexing; include the tensor only if hosting allows. |
+| `new_domain_iso.pt` | 1,107,170,889 | `3035057aeb8638680d676283ace2194b` | 90,377 graphs, labels, `csv_idx`, `te_idx`. Optional: `retained_ids.csv` + `atom_maps.npz` already let a reader rebuild the indexing; include the tensor only if hosting allows. The revised Figure 4 package documents the rebuild entry point and the frozen `data_indices/ensemble_split_new.npz` split. |

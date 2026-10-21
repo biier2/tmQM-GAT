@@ -1,0 +1,7 @@
+Device: cpu
+Test complexes: 13,556
+Loaded out/fig4_zeroed_best.pt (1,311,404 params)
+[test all] n=13,556  mean=0.102 mHa  compliance<0.01Ha=100.00%  <0.001Ha=100.00%  R2(gap vs derived)=1.0000  violation=0.03%
+[sample n=5000] n=5,000  mean=0.100 mHa  compliance<0.01Ha=100.00%  <0.001Ha=100.00%  R2(gap vs derived)=1.0000  violation=0.04%
+Test MAE per target: gap=0.0099  homo=0.0083  lumo=0.0094  dipole=1.4972  metal_charge=0.0901  E_elec=252.8909  E_disp=0.0137  polarizability=29.3455
+Saved out/fig4_zeroed_results.npz (439,080 bytes)
