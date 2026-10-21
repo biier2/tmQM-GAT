@@ -65,7 +65,7 @@ the `v1.0-review` GitHub release, not in the git history:
 | `ensemble_checkpoint_C_11d6d.pt` | 47 MB (nine members) |
 | `ensemble_checkpoint_D_11d23d.pt` | 47 MB (nine members) |
 | `ensemble_checkpoint_SchNet.pt` | 96 MB (nine members) |
-| DimeNet++ three-member weights | 3 members (uploaded with the same release) |
+| `ensemble_checkpoint_DimeNet.pt` | 23 MB (three members) |
 | `dft_logs_12.zip` | twelve Gaussian 16 C.01 logs, ~214 MB uncompressed |
 
 The ~1.1 GB domain tensor `new_domain_iso.pt` is **not** redistributed:

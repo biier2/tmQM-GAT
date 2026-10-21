@@ -16,9 +16,9 @@ Checksums are md5, matching the rest of the project's records.
 | `ensemble_checkpoint_C_11d6d.pt` | 47,292,359 | 9 | `cf4f3474c980d1980d930b0beb935524` | variant C, 11d/6d |
 | `ensemble_checkpoint_D_11d23d.pt` | 47,330,229 | 9 | `479d3b58c8d30460a430bf33ad2a46db` | variant D, full 3D (11d/23d) |
 | `ensemble_checkpoint_SchNet.pt` | 96,122,164 | 9 | `15661382cb757bc25ed7019893d9cd60` | SchNet baseline ensemble |
-| DimeNet++ three-member weights | — | 3 | — | **not on this machine**; produced on the server by `server_dimenet_fixed.py`, must be copied back before the record is frozen |
+| `ensemble_checkpoint_DimeNet.pt` | 22,888,933 | 3 | `5614a3be30227404208e0574d0889504` | DimeNet++ baseline, fold 0, seeds 42/123/456 (1,894,790 parameters per member) |
 
-Total of the five files present locally: 285,277,648 bytes (272 MiB).
+Total of the six checkpoint files: 308,166,581 bytes (294 MiB).
 
 ## DFT reference logs
 
