@@ -1,0 +1,81 @@
+{
+  "N": 90377,
+  "arrays": {
+    "csv_idx": {
+      "bytes": 723016,
+      "md5": "ac8ba24532767b542dfb7acda4a746ec"
+    },
+    "te_idx": {
+      "bytes": 54224,
+      "md5": "9f1dda76e12436fe29834023ba6cb0a4"
+    },
+    "y_all": {
+      "bytes": 2892064,
+      "md5": "ea285df3e7941743f4e0d14d3ae6f1dc"
+    },
+    "y_mean": {
+      "bytes": 32,
+      "md5": "1167e220507f7a16a9c80e4842e9ece3"
+    },
+    "y_std": {
+      "bytes": 32,
+      "md5": "edd852208712a46d468f6e86c91f347a"
+    }
+  },
+  "file": "new_domain_iso.pt",
+  "file_bytes_of_authors_copy": 1107170889,
+  "file_md5_of_authors_copy": "3035057aeb8638680d676283ace2194b",
+  "lists": {
+    "atoms_filt": {
+      "bytes": 47175864,
+      "len": 90377,
+      "md5": "b4d741ff54da47e7bb42a77d87e3e4e0"
+    },
+    "bo1_ls": {
+      "bytes": 28804936,
+      "len": 90377,
+      "md5": "6fda7774eda04ade343e4d413e783fce"
+    },
+    "e6_ls": {
+      "bytes": 172829616,
+      "len": 90377,
+      "md5": "c33dc5d5cea39e85fdf43e3e825b043c"
+    },
+    "ei_ls": {
+      "bytes": 115219744,
+      "len": 90377,
+      "md5": "2128bb8997bffdf86155162f4e1e7e94"
+    },
+    "node3s": {
+      "bytes": 37745628,
+      "len": 90377,
+      "md5": "e385d7203c14d1d4c5f1a1a88a2a98ef"
+    },
+    "node8s": {
+      "bytes": 100655008,
+      "len": 90377,
+      "md5": "943e5c5aca5bb474583357943a5de311"
+    },
+    "rbf_ls": {
+      "bytes": 460878976,
+      "len": 90377,
+      "md5": "f222d541774f1267537f8d4fd2f7b4e5"
+    }
+  },
+  "match_src_counts": {
+    "BO0.2": 61759,
+    "dist0.45": 27273,
+    "dist0.60": 1345
+  },
+  "note": "torch.save is not byte-deterministic; a rebuilt tensor has a different file md5. Compare these content digests instead. Arrays are hashed as contiguous little-endian C-order bytes in domain order; lists are hashed by concatenating each element in order. Strings are joined with newlines and hashed as UTF-8.",
+  "strings": {
+    "csd_codes": {
+      "len": 90377,
+      "md5": "3c3e72a33ad53c20d6e2ef2f3d8a65d5"
+    },
+    "match_src": {
+      "len": 90377,
+      "md5": "285d264f84faf1e6a4a10b8f1bb8418a"
+    }
+  }
+}

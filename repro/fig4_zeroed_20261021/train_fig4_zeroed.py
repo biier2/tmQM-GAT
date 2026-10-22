@@ -106,8 +106,8 @@ def rebuild_split(n_total, data_te):
     if set(te.tolist()) != set(np.asarray(data_te).tolist()):
         raise ValueError(
             'new_domain_iso.pt te_idx is not the seed-42 permutation; cannot rebuild the paper split. '
-            'Check that the data file is the 90,377-complex new_domain_iso.pt '
-            '(md5 3035057aeb8638680d676283ace2194b).')
+            'Check that the data file is the 90,377-complex new_domain_iso.pt and verify its '
+            'content with repro/verify_domain_content.py.')
     cv = perm[n_te:].astype(np.int64)
     kf = KFold(n_splits=3, shuffle=True, random_state=42)
     tr_pos, va_pos = next(iter(kf.split(cv)))
@@ -156,7 +156,9 @@ def main():
     print(f'N={n_total:,}  loaded in {time.time() - t0:.1f}s', flush=True)
     print(f'Data md5: {data_md5}', flush=True)
     if data_md5 != EXPECTED_DATA_MD5:
-        print(f'[warn] data md5 differs from the paper-domain file {EXPECTED_DATA_MD5}', flush=True)
+        print(f'[warn] file md5 differs from the authors\' copy {EXPECTED_DATA_MD5}. '
+              'This is expected for a rebuilt tensor (torch.save is not byte-deterministic); '
+              'verify the contents with repro/verify_domain_content.py.', flush=True)
 
     # ---------------- split ----------------
     data_te = np.asarray(data['te_idx']).astype(np.int64)

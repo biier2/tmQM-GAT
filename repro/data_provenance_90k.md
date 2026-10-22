@@ -51,15 +51,54 @@ revision. The records and per-stack messages are in
 
 | entry point | role |
 |---|---|
-| `analysis/rebuild_match_iso.py` | element-preserving graph matching (VF2++) and `sm2xyz` construction |
+| `analysis/rebuild_match_iso.py` | element-preserving graph matching (VF2++) and `sm2xyz` construction; writes `new_domain_iso.pt` with the paper split (`te_idx = RandomState(42).permutation(90377)[:13556]`) |
 | `baselines/server_package/server_train_variants.py` | builds `ensemble_split_new.npz`, the 90,377-complex partitions used for training and evaluation |
 | `data_indices/retained_ids.csv` | 90,377 retained `csv_idx, csd_code` pairs |
 | `data_indices/excluded_ids.csv` | 18,164 excluded rows with reason codes |
 | `data_indices/index_reconciliation.json` | machine-readable counts and source checksums |
 | `analysis/verify_metal_weight.py` | independent recomputation of the main-domain metal-weight table |
+| `repro/verify_domain_content.py` | content-level verification of a rebuilt `new_domain_iso.pt` against `repro/domain_content_digests.json` |
 | `repro/round8_recon_20261016/id12b_diff.json` | the 18-record two-stack parse difference |
 
-The 1.1 GB graph tensor `new_domain_iso.pt` (md5
-`3035057aeb8638680d676283ace2194b`) is not committed to the repository.
+## Rebuild verification
+
+The 1.1 GB graph tensor `new_domain_iso.pt` is not committed to the repository.
+The authors' copy is 1,107,170,889 bytes with file md5
+`3035057aeb8638680d676283ace2194b`, but **`torch.save` is not
+byte-deterministic**: saving the same dictionary twice gives different file
+bytes, so a rebuilt tensor will not match that md5 even when its contents are
+identical. Use the content digests below instead.
+
+```bash
+python analysis/rebuild_match_iso.py                  # -> new_domain_iso.pt
+python repro/verify_domain_content.py --data new_domain_iso.pt
+```
+
+The verifier hashes each array as contiguous little-endian C-order bytes in
+domain order, concatenates list elements in order for the per-complex feature
+lists, joins string lists with newlines (UTF-8), and checks the domain size,
+the seed-42 test split and `data_indices/retained_ids.csv`.
+
+| field | bytes | content md5 |
+|---|---:|---|
+| `csv_idx` | 723,016 | `ac8ba24532767b542dfb7acda4a746ec` |
+| `y_all` | 2,892,064 | `ea285df3e7941743f4e0d14d3ae6f1dc` |
+| `te_idx` | 54,224 | `9f1dda76e12436fe29834023ba6cb0a4` |
+| `y_mean` | 32 | `1167e220507f7a16a9c80e4842e9ece3` |
+| `y_std` | 32 | `edd852208712a46d468f6e86c91f347a` |
+| `csd_codes` (newline-joined) | 90,377 entries | `3c3e72a33ad53c20d6e2ef2f3d8a65d5` |
+| `match_src` (newline-joined) | 90,377 entries | `285d264f84faf1e6a4a10b8f1bb8418a` |
+| `atoms_filt` (list) | 47,175,864 | `b4d741ff54da47e7bb42a77d87e3e4e0` |
+| `node8s` (list) | 100,655,008 | `943e5c5aca5bb474583357943a5de311` |
+| `node3s` (list) | 37,745,628 | `e385d7203c14d1d4c5f1a1a88a2a98ef` |
+| `ei_ls` (list) | 115,219,744 | `2128bb8997bffdf86155162f4e1e7e94` |
+| `e6_ls` (list) | 172,829,616 | `c33dc5d5cea39e85fdf43e3e825b043c` |
+| `rbf_ls` (list) | 460,878,976 | `f222d541774f1267537f8d4fd2f7b4e5` |
+| `bo1_ls` (list) | 28,804,936 | `6fda7774eda04ade343e4d413e783fce` |
+
+`match_src` counts are `BO0.2` 61,759, `dist0.45` 27,273, `dist0.60` 1,345.
+The machine-readable copy of this table is `repro/domain_content_digests.json`.
 `retained_ids.csv` plus `data_indices/atom_maps.npz` contain the row-level
-identifiers and atom mappings needed to rebuild the indexing without it.
+identifiers and atom mappings needed to rebuild the indexing without the
+tensor; the feature arrays additionally require the public XYZ/BO archives and
+the pinned RDKit/NetworkX stack in `environment_train.yml`.

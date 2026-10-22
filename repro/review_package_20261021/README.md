@@ -35,8 +35,11 @@ records; the VF2++ matching itself is not re-run here. CSD codes agree between
 the XYZ headers, `tmQM_y.csv` and `new_domain_iso.pt` for all 90,377 retained
 records (0 mismatches).
 
-The main domain file is `new_domain_iso.pt`, md5
-`3035057aeb8638680d676283ace2194b`.
+The main domain file is `new_domain_iso.pt`; the authors' copy is
+1,107,170,889 bytes with md5 `3035057aeb8638680d676283ace2194b`. `torch.save`
+is not byte-deterministic, so that md5 does not identify a rebuild; use
+`repro/verify_domain_content.py` and the content digests in
+`repro/domain_content_digests.json`.
 
 ## Contents
 
@@ -96,10 +99,25 @@ domains are otherwise nested, and `index_reconciliation.json` records both.
 | `export_preds.py` | `preds/*.npz`, `preds/manifest.json` |
 | `verify_catalysts_etkdg.py` | `catalysts_etkdg_verification.json` |
 | `verify_atom_maps.py` | structural check of `atom_maps.npz` (counts, injectivity, elements) |
+| `recompute_tables.py` | recomputes every ensemble R2/MAE in Tables 2 and 3 from `preds/` and checks it against `results_tables/*.json`; exits non-zero on any mismatch |
 
 Re-run any script with `python export_<name>.py` from this directory. Paths to
 the frozen source artifacts are absolute (`D:\ml\chem_ml5\...`) and are stated
 inside each script.
+
+`recompute_tables.py` is the one reviewer-facing check that needs no source
+data: it reads the archived predictions and the repository's result JSONs, runs
+on CPU in seconds, and returns 0 only if every value matches. Run it from the
+repository root:
+
+```bash
+python repro/review_package_20261021/recompute_tables.py
+```
+
+`MANIFEST.md5` uses the standard `md5sum` two-column format and is checked from
+the repository root with `md5sum -c repro/review_package_20261021/MANIFEST.md5`.
+The repository's `.gitattributes` forces LF line endings on checkout, so the
+checksums are the same on Windows, macOS and Linux.
 
 ## Environment
 

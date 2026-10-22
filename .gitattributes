@@ -1,0 +1,11 @@
+# Keep the checked-out bytes identical on Windows, macOS and Linux so that the
+# md5 checksums in MANIFEST.md and the review-package manifests verify after a
+# fresh clone. Git stores text as LF and checks it out as LF on every platform.
+* text=auto eol=lf
+
+*.pt binary
+*.npz binary
+*.png binary
+*.jpg binary
+*.pdf binary
+*.zip binary

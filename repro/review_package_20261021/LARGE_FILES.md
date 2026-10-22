@@ -65,4 +65,4 @@ Notes for the record description:
 
 | file | bytes | md5 | note |
 |---|---:|---|---|
-| `new_domain_iso.pt` | 1,107,170,889 | `3035057aeb8638680d676283ace2194b` | 90,377 graphs, labels, `csv_idx`, `te_idx`. Optional: `retained_ids.csv` + `atom_maps.npz` already let a reader rebuild the indexing; include the tensor only if hosting allows. The revised Figure 4 package documents the rebuild entry point and the frozen `data_indices/ensemble_split_new.npz` split. |
+| `new_domain_iso.pt` | 1,107,170,889 | `3035057aeb8638680d676283ace2194b` (authors' copy; not a rebuild anchor) | 90,377 graphs, labels, `csv_idx`, `te_idx`. Optional: `retained_ids.csv` + `atom_maps.npz` already let a reader rebuild the indexing; include the tensor only if hosting allows. `torch.save` is not byte-deterministic, so verify a rebuild with `repro/verify_domain_content.py` and the content digests in `repro/domain_content_digests.json`, not with the file md5. The revised Figure 4 package documents the rebuild entry point and the frozen `data_indices/ensemble_split_new.npz` split. |

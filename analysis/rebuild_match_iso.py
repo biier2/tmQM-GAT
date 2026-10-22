@@ -260,7 +260,11 @@ print(f'排除分布: {dict(excl)}')
 
 N = n_iso_ok
 perm = np.random.RandomState(42).permutation(N)
-n_te = int(round(0.15 * N))
+# The training scripts use int(N * 0.15) (floor), which gives 13,556 for
+# N = 90,377. Keep this in step with server_train_variants.py and
+# data_indices/ensemble_split_new.npz; round(0.15*N) would give 13,557 and
+# break the paper split.
+n_te = int(N * 0.15)
 te_idx = perm[:n_te].copy()
 y_t = torch.tensor(np.array(y_all, dtype=np.float32))
 y_mean = y_t.mean(0); y_std = y_t.std(0)
@@ -272,3 +276,5 @@ torch.save({
     'match_src': src_all, 'y_mean': y_mean, 'y_std': y_std,
 }, OUT)
 print(f'SAVED {OUT}: N={N}, test={n_te}')
+print('Verify the rebuild against the recorded content digests with:')
+print(f'  python repro/verify_domain_content.py --data {OUT}')

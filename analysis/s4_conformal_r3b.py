@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
-"""S4: 标准化分裂保形预测 — 3D 集成 9 成员, 2000 校准 / 11547 评估
+"""LEGACY (90,317 domain, 13,547 test / 11,547 evaluation). Kept for
+provenance only; it does not reproduce the manuscript's conformal numbers,
+which use the 90,377 domain and 13,556 / 11,556 counts. See
+repro/round8_recon_20261015/recon_conformal_gating.py and
+data_indices/gating_indices.npz.
+
+S4: 标准化分裂保形预测 — 3D 集成 9 成员, 2000 校准 / 11547 评估
 非一致性分数 s_i = |y - ŷ_ens| / σ_ens (σ 取 9 成员 std, 下限保护)
 目标覆盖率 1-α ∈ {0.80, 0.90, 0.95}"""
 import json, sys

@@ -14,7 +14,14 @@ import sys
 import numpy as np
 
 sys.stdout.reconfigure(encoding='utf-8')
-OUT = r'D:\ml\paper\draft\round8\_recon_20261015'
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.abspath(os.path.join(HERE, '..', '..'))
+# Input defaults to the archived prediction copy in the repository; override
+# with RECON_PREDS / RECON_OUT if needed.
+IN_NPZ = os.environ.get('RECON_PREDS',
+                        os.path.join(REPO, 'preds', 'test_preds_A_8d6d.npz'))
+OUT = os.environ.get('RECON_OUT', os.path.join(HERE, '_out'))
+os.makedirs(OUT, exist_ok=True)
 P8 = ["HL-Gap", "HOMO", "LUMO", "Dipole", "MetalCharge", "E_elec", "E_disp", "Polarizability"]
 PRINTED_HW = {'HL-Gap': 0.020, 'HOMO': 0.019, 'LUMO': 0.018, 'Dipole': 3.42,
               'MetalCharge': 0.18, 'E_elec': 406.0, 'E_disp': 0.028, 'Polarizability': 56.9}
@@ -22,11 +29,14 @@ PRINTED_PRE = {'HL-Gap': 0.0092, 'Dipole': 1.394}
 PRINTED_POST = {'HL-Gap': 0.0078, 'Dipole': 1.105}
 PRINTED_Q1 = {'HL-Gap': 0.0061, 'Dipole': 0.879}
 
-z = np.load(r'D:\ml\chem_ml5\test_preds_A_8d6d.npz', allow_pickle=True)
+print('input:', IN_NPZ)
+z = np.load(IN_NPZ, allow_pickle=True)
 print('npz keys:', z.files)
 pm = np.asarray(z['preds'], dtype=np.float64)   # (9, N, 8)
 y_true = np.asarray(z['y_true'], dtype=np.float64)
 n = len(y_true)
+if n != 13556:
+    raise SystemExit(f'test rows = {n}, expected 13,556 (wrong prediction archive?)')
 y_mean = pm.mean(axis=0)
 sigma = np.maximum(pm.std(axis=0), 1e-6)
 rng = np.random.RandomState(42)

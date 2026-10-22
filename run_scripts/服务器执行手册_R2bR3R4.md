@@ -1,5 +1,10 @@
 # 服务器执行手册：R2b / R3 / R4 补实验
 
+> **LEGACY（2026-10-22 标注）**：本手册记录 2026-08 的 **90,317 / 95,152
+> 开发域**训练流程，不是当前论文（90,377 域、13,556 测试集）的主实验手册。
+> 其中的脚本与日志不能复现正文 Table 2/3；当前流程见 `README.md` 的
+> “Reproducing the reported results” 与 `REVIEW_PACKAGE.md`。
+
 生成日期 2026-08-25（优化版：三个训练脚本均已改造为多进程数据管道）。环境：GPU 5070 Ti 16GB（torch + rdkit + sklearn 已就绪，与 ensemble_cv_weighted 同环境）。
 
 ## ⚠️ 重要：r4_train.py 已更新，请停掉旧版重跑

@@ -1,7 +1,7 @@
-c47135e85067ef2ede5d9afd6f62be43  eval_fig4_zeroed.log  539
-2fc359c2a2139f9301a41af67e6b6922  eval_smiles_subset.log  258
-cc0273e4aa640f5ad10ef80e810b0c52  fig4_smiles_results_subset.npz  115715
-294d1db337e663eade4af14253bee7c7  fig4_zeroed_history.json  21983
-01f6f1382dc2dca6f32c48f29deb204a  fig4_zeroed_meta.json  2473
-486d28d7756bc72d36c42a8ad584f60a  fig4_zeroed_results.npz  439080
-f94d052443e1b7212c3e376c052c042b  train_fig4_zeroed.log  4148
+c47135e85067ef2ede5d9afd6f62be43  eval_fig4_zeroed.log
+2fc359c2a2139f9301a41af67e6b6922  eval_smiles_subset.log
+cc0273e4aa640f5ad10ef80e810b0c52  fig4_smiles_results_subset.npz
+294d1db337e663eade4af14253bee7c7  fig4_zeroed_history.json
+01f6f1382dc2dca6f32c48f29deb204a  fig4_zeroed_meta.json
+486d28d7756bc72d36c42a8ad584f60a  fig4_zeroed_results.npz
+f94d052443e1b7212c3e376c052c042b  train_fig4_zeroed.log

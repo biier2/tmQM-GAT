@@ -23,12 +23,17 @@ code in this repository.
 | `preds/test_preds_*.npz` | Member and ensemble predictions, `y_true` and `te_idx` for the eight GAT variants, SchNet and DimeNet++ on the held-out test set. |
 | `preds/crossfunct_A_preds.npz` | Predictions of the SMILES-only ensemble on the 73,438-complex tmQMg transfer set. |
 | `preds/manifest.json` | Shapes, dtypes, sizes and md5 values of every prediction archive. |
-| `repro/review_package_20261021/` | The `export_*.py` scripts that generated the files above, the two `verify_*.py` checks, and a README with the index conventions and known limitations. |
+| `repro/review_package_20261021/` | The `export_*.py` scripts that generated the files above, the two `verify_*.py` checks, `recompute_tables.py` (recomputes Tables 2 and 3 from the archived predictions), and a README with the index conventions and known limitations. |
 | `repro/fig4_zeroed_20261021/` | Retraining package for the revised Figure 4: zeroed 11d/23d model code, production training/evaluation logs, result archives and expected values. The two single-model checkpoints used by the figure are release assets. |
+| `repro/verify_domain_content.py` | Content-level verification of a rebuilt `new_domain_iso.pt` against the recorded digests (the file md5 is not stable because `torch.save` is not byte-deterministic). |
+| `figures/FIGURE_PROVENANCE.md` | Per-figure map from manuscript media to data, design scripts and reproducibility status. |
 
 A checksum list for every delivered file is in
-`repro/review_package_20261021/MANIFEST.md5` (paths relative to the repository
-root).
+`repro/review_package_20261021/MANIFEST.md5` (standard two-column `md5sum`
+format, paths relative to the repository root; run
+`md5sum -c repro/review_package_20261021/MANIFEST.md5` from the root). The
+repository's `.gitattributes` forces LF line endings on checkout, so the
+checksums are the same on Windows, macOS and Linux.
 
 ## Index conventions
 
@@ -75,8 +80,12 @@ the `v1.0-review` GitHub release, not in the git history:
 
 The ~1.1 GB domain tensor `new_domain_iso.pt` is **not** redistributed:
 `retained_ids.csv` plus `atom_maps.npz` contain the indexing needed to rebuild
-it with `gat/` scripts. The rebuild entry point and the frozen split used by the
-revised Figure 4 are documented in `repro/fig4_zeroed_20261021/README.md`. See
+it with `analysis/rebuild_match_iso.py`. The file md5 identifies the authors'
+copy only (`torch.save` is not byte-deterministic); a rebuild is verified with
+`python repro/verify_domain_content.py --data new_domain_iso.pt`, which
+compares the content digests in `repro/domain_content_digests.json` and checks
+the seed-42 split and the retained-ID table. The frozen split used by the
+revised Figure 4 is documented in `repro/fig4_zeroed_20261021/README.md`. See
 `repro/review_package_20261021/LARGE_FILES.md` for per-file md5 values and notes
 on the DFT logs (including the naming of `Pd-cat1-2.log` and the two
 Ni(IMes)2Cl2 spin states).
@@ -90,3 +99,17 @@ and are not redistributed here. The README in that directory lists the input
 files, the filter chain and the three known limitations (ablation-cohort
 per-metal counts, catalyst conformer regeneration, and the degenerate main-
 cohort metal weights).
+
+Two paths work from a plain checkout without the source data:
+
+```bash
+# Recompute every ensemble R2/MAE in Tables 2 and 3 from preds/
+python repro/review_package_20261021/recompute_tables.py
+
+# Recompute the conformal/gating arrays from preds/test_preds_A_8d6d.npz
+python repro/round8_recon_20261015/recon_conformal_gating.py
+```
+
+The gating script writes its output to
+`repro/round8_recon_20261015/_out/` (ignored by git); `gating_indices.npz`
+there matches `data_indices/gating_indices.npz` array for array.

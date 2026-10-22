@@ -71,9 +71,20 @@ def main():
     te_idx = np.asarray(data['te_idx']).astype(np.int64)
     if os.path.exists(args.split):
         npz_te = np.load(args.split)['te_idx'].astype(np.int64)
-        if set(npz_te.tolist()) != set(te_idx.tolist()):
-            print(f'[warn] {args.split} te_idx differs from new_domain_iso.pt; '
-                  f'using the latter ({len(te_idx):,} complexes)', flush=True)
+        if not np.array_equal(npz_te, te_idx):
+            raise SystemExit(
+                f'{args.split} and {args.data} disagree on te_idx. The frozen '
+                'paper split is required for Figure 4; rebuild the tensor with '
+                'analysis/rebuild_match_iso.py (n_te = int(0.15 * N) = 13,556) '
+                'or point --split at data_indices/ensemble_split_new.npz.')
+        print(f'Using frozen split: {args.split}', flush=True)
+    else:
+        print(f'[note] {args.split} not found; using te_idx stored in the tensor', flush=True)
+    if len(te_idx) != 13556:
+        raise SystemExit(f'te_idx has {len(te_idx):,} rows; the paper split has 13,556')
+    perm = np.random.RandomState(42).permutation(len(data['y_all']))
+    if not np.array_equal(te_idx, perm[:13556]):
+        raise SystemExit('te_idx is not RandomState(42).permutation(N)[:13556]')
     y_gap = data['y_all'][te_idx, 0].float()
     print(f'Test complexes: {len(te_idx):,}', flush=True)
 
