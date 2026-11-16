@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
-"""DimeNet++ 受控基线 — 训练/评估 (服务器 GPU)
+"""DimeNet++ controlled baseline — training/evaluation (server GPU)
 
-协议 (与论文严格对齐, 详见 README.md):
-  - 测试集: ensemble_split.npz te_idx (13,547, 不变) — 与 GNN 同一测试划分
-  - 训练/验证 = 论文折0划分 (fold_0_train 51,180 / fold_0_val 25,590, 与 3D GAT 折0 同集)
-  - 8 性质多任务 (DimeNetPlusPlus out_channels=8), z-score 训练集统计
-  - 3D 输入: tmQM 原始 DFT XYZ; 半径图 r=5.0 Å / 每节点 32 近邻
+Protocol (strictly aligned with the paper, see README.md):
+  - test set: ensemble_split.npz te_idx (13,547, unchanged) — the same test split as the GNNs
+  - train/val = paper fold 0 split (fold_0_train 51,180 / fold_0_val 25,590, the same set as 3D GAT fold 0)
+  - 8-property multi-task (DimeNetPlusPlus out_channels=8), z-score with training-set statistics
+  - 3D input: tmQM original DFT XYZ; radius graph r=5.0 Å / 32 neighbours per node
 
-用法:
-  python train_dimenet.py --smoke          # 2 epoch 冒烟 (约 2 分钟, 验证管线)
-  python train_dimenet.py --subset 2000 --epochs 150 --patience 200   # 小样本拟合诊断 (约 40 分钟)
-  python train_dimenet.py --epochs 300 --val-every 5   # R4 全量训练 (cosine 调度, batch 8)
-  python train_dimenet.py --resume         # 断点续训 (从 dimenetpp_last.pt)
+Usage:
+  python train_dimenet.py --smoke          # 2-epoch smoke test (about 2 minutes, verifies the pipeline)
+  python train_dimenet.py --subset 2000 --epochs 150 --patience 200   # small-sample fitting diagnostic (about 40 minutes)
+  python train_dimenet.py --epochs 300 --val-every 5   # R4 full training (cosine schedule, batch 8)
+  python train_dimenet.py --resume         # resume training (from dimenetpp_last.pt)
   python train_dimenet.py --schedule plateau --epochs 200 --batch-size 16 --lr 5e-4
 
-输出: dimenetpp_best.pt / dimenetpp_last.pt / dimenet_train_log.csv / dimenet_test_preds.npz
+Output: dimenetpp_best.pt / dimenetpp_last.pt / dimenet_train_log.csv / dimenet_test_preds.npz
 """
 import os, sys, csv, time, argparse
 try:
@@ -42,16 +42,16 @@ parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--weight-decay', type=float, default=1e-4)
 parser.add_argument('--hidden', type=int, default=128)
 parser.add_argument('--blocks', type=int, default=4)
-parser.add_argument('--workers', type=int, default=0, help='0=主进程加载(推荐, 避免 CUDA fork 死锁; 数据加载不是瓶颈)')
-parser.add_argument('--patience', type=int, default=40, help='plateau 调度的早停 patience (cosine 下不早停)')
+parser.add_argument('--workers', type=int, default=0, help='0=load in the main process (recommended, avoids CUDA fork deadlock; data loading is not the bottleneck)')
+parser.add_argument('--patience', type=int, default=40, help='early-stopping patience for the plateau schedule (no early stopping under cosine)')
 parser.add_argument('--schedule', choices=['cosine', 'plateau'], default='cosine',
-                    help='cosine: 全程余弦退火 (R4, 不受 val 平台期影响); plateau: 旧版按 val 衰减')
-parser.add_argument('--warmup', type=int, default=10, help='cosine 预热 epoch 数')
-parser.add_argument('--min-lr', type=float, default=1e-5, help='cosine 末端学习率')
-parser.add_argument('--val-every', type=int, default=1, help='每 N 个 epoch 评估一次验证集 (N>1 省约 100s/epoch)')
-parser.add_argument('--smoke', action='store_true', help='2 epoch 冒烟测试')
-parser.add_argument('--subset', type=int, default=0, help='诊断: 只用前 N 个训练分子 (0=全量), 用于快速判断模型能否拟合小样本')
-parser.add_argument('--resume', action='store_true', help='从 dimenetpp_last.pt 续训')
+                    help='cosine: full-run cosine annealing (R4, unaffected by val plateaus); plateau: legacy decay on val')
+parser.add_argument('--warmup', type=int, default=10, help='number of cosine warmup epochs')
+parser.add_argument('--min-lr', type=float, default=1e-5, help='final learning rate of the cosine schedule')
+parser.add_argument('--val-every', type=int, default=1, help='evaluate the validation set every N epochs (N>1 saves about 100s/epoch)')
+parser.add_argument('--smoke', action='store_true', help='2-epoch smoke test')
+parser.add_argument('--subset', type=int, default=0, help='diagnostic: use only the first N training molecules (0=full), to quickly judge whether the model can fit a small sample')
+parser.add_argument('--resume', action='store_true', help='resume training from dimenetpp_last.pt')
 parser.add_argument('--seed', type=int, default=0)
 args = parser.parse_args()
 
@@ -63,7 +63,7 @@ torch.manual_seed(args.seed)
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.set_float32_matmul_precision('high')
 
-# ===== 数据加载 =====
+# ===== Data loading =====
 print('Loading dimenet_data.npz ...')
 D = np.load(args.data, allow_pickle=True)
 y_mean_cpu = torch.from_numpy(D['y_mean'].astype(np.float32))
@@ -74,11 +74,11 @@ print(f'y_mean={y_mean.cpu().numpy().round(2)}', flush=True)
 print(f'y_std ={y_std.cpu().numpy().round(2)}', flush=True)
 
 def make_dataset(sel, tag):
-    """按索引序列加载 z/pos/edge_index/y, 组装 PyG Data 列表。
+    """Load z/pos/edge_index/y by index sequence and assemble a list of PyG Data objects.
 
-    ⚠️ NpzFile (np.load 返回对象) 不缓存成员: D['z_train'] 每访问一次就重新
-    解压+反序列化整列对象数组。必须在循环外取一次, 否则 O(N) 次解压整列,
-    组装会慢上几个小时。"""
+    ⚠️ NpzFile (the object returned by np.load) does not cache members: every access to D['z_train']
+    re-decompresses + deserialises the entire object array column. It must be fetched once outside the loop,
+    otherwise the whole column is decompressed O(N) times and assembly becomes hours slower."""
     z_arr = D[f'z_{tag}']
     pos_arr = D[f'pos_{tag}']
     edge_arr = D[f'edge_{tag}']
@@ -89,34 +89,34 @@ def make_dataset(sel, tag):
             z=torch.from_numpy(z_arr[k].astype(np.int64)),
             pos=torch.from_numpy(pos_arr[k]),
             edge_index=torch.from_numpy(edge_arr[k].astype(np.int64)),
-            # z-score(训练集统计) — 与论文 GNN 管线一致; 评估时再乘 y_std 加 y_mean 反标准化。
-            # (1, 8): PyG 默认把 y 当节点级属性沿 dim0 拼接, (8,) 会拼成 (batch*8,) 与图级输出 (batch, 8) 对不上
+            # z-score (training-set statistics) — consistent with the paper GNN pipeline; de-normalised at evaluation by multiplying by y_std and adding y_mean.
+            # (1, 8): PyG treats y as a node-level attribute and concatenates along dim0 by default; (8,) would be concatenated into (batch*8,), which does not match the graph-level output (batch, 8)
             y=((torch.from_numpy(y_arr[k]) - y_mean_cpu) / y_std_cpu).view(1, -1)))
     return data
 
 sel_tr, sel_va, sel_te = range(D['train_sel'].shape[0]), range(D['val_sel'].shape[0]), range(D['test_sel'].shape[0])
 if args.smoke:
-    print('[smoke] 数据集缩减: train 128 / val 32 / test 64, epochs=2, batch=4')
+    print('[smoke] reduced datasets: train 128 / val 32 / test 64, epochs=2, batch=4')
     args.epochs, args.batch_size, args.patience = 2, 4, 100
     sel_tr, sel_va, sel_te = range(128), range(32), range(64)
-    args.lr = 5e-4       # 冒烟用小学习率快收敛
-    args.schedule = 'plateau'   # 2 epoch 冒烟不适用 cosine 预热
+    args.lr = 5e-4       # small learning rate for fast convergence in the smoke test
+    args.schedule = 'plateau'   # cosine warmup is not applicable to a 2-epoch smoke test
 if args.subset and not args.smoke:
     n_sub = args.subset
-    print(f'[subset] 诊断模式: train {n_sub} / val {max(64, n_sub // 8)} / test 64, epochs={args.epochs}, '
-          f'判定: train_rmse < 0.6 = 架构健康(问题在训练规模/调度); 卡在 0.9+ = 几何通路失效')
+    print(f'[subset] diagnostic mode: train {n_sub} / val {max(64, n_sub // 8)} / test 64, epochs={args.epochs}, '
+          f'criterion: train_rmse < 0.6 = healthy architecture (the problem is training scale/schedule); stuck at 0.9+ = geometry pathway broken')
     sel_tr, sel_va, sel_te = range(n_sub), range(max(64, n_sub // 8)), range(64)
 t_ds = time.time()
 train_ds = make_dataset(sel_tr, 'train')
 val_ds = make_dataset(sel_va, 'val')
 test_ds = make_dataset(sel_te, 'test')
-print(f'Train {len(train_ds)} / Val {len(val_ds)} / Test {len(test_ds)}  (数据集组装 {time.time()-t_ds:.0f}s)', flush=True)
+print(f'Train {len(train_ds)} / Val {len(val_ds)} / Test {len(test_ds)}  (dataset assembly {time.time()-t_ds:.0f}s)', flush=True)
 
 train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, drop_last=False)
 val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
 test_loader = DataLoader(test_ds, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
 
-# ===== 模型 =====
+# ===== Model =====
 model = DimeNetPlusPlus(
     hidden_channels=args.hidden, out_channels=len(TARGETS), num_blocks=args.blocks,
     int_emb_size=64, basis_emb_size=8, out_emb_channels=256,
@@ -129,9 +129,9 @@ print(f'DimeNetPlusPlus: hidden={args.hidden} blocks={args.blocks} out=8  params
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 if args.schedule == 'cosine':
-    # R4 关键修复: R3 用 ReduceLROnPlateau, val 长期停在 0.95 均值预测地板 → lr 被一路
-    # 衰减到 1e-5, 训练还没开始拟合就被冻结 (epoch 66 train≈val≈0.95 即此症状)。
-    # 小样本诊断 (--subset 2000 → train_rmse 0.026) 已证明架构健康, 故改用 cosine 全程退火。
+    # R4 key fix: R3 used ReduceLROnPlateau; val stayed for a long time on the 0.95 mean-prediction floor → lr was
+    # decayed all the way to 1e-5 and training was frozen before fitting even began (epoch 66 train≈val≈0.95 is exactly this symptom).
+    # The small-sample diagnostic (--subset 2000 → train_rmse 0.026) already proved the architecture is healthy, so full-run cosine annealing is used instead.
     warm = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1e-3, total_iters=args.warmup)
     cos = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(1, args.epochs - args.warmup),
                                                      eta_min=args.min_lr)
@@ -147,9 +147,9 @@ if args.resume and os.path.exists(os.path.join(SCRIPT_DIR, 'dimenetpp_last.pt'))
     scheduler.load_state_dict(ck['scheduler'])
     start_epoch = ck['epoch'] + 1
     best_val = ck['best_val']
-    print(f'[resume] 从 epoch {start_epoch} 继续 (best_val={best_val:.5f})')
+    print(f'[resume] continuing from epoch {start_epoch} (best_val={best_val:.5f})')
 
-# ===== 评估 =====
+# ===== Evaluation =====
 @torch.no_grad()
 def evaluate(loader):
     model.eval()
@@ -160,15 +160,15 @@ def evaluate(loader):
         ys.append(data.y)
     return torch.cat(preds), torch.cat(ys)
 
-# ===== 训练 =====
+# ===== Training =====
 log_path = os.path.join(SCRIPT_DIR, 'dimenet_train_log.csv')
 with open(log_path, 'a' if args.resume else 'w', newline='') as f:
     w = csv.writer(f)
     if not args.resume:
         w.writerow(['epoch', 'lr', 'train_rmse', 'val_rmse', 'best_val', 'sec'])
 
-patience_left = args.patience if args.schedule == 'plateau' else args.epochs  # cosine 不早停, 跑满
-print(f'开始训练: {args.epochs} epochs, batch {args.batch_size}, workers {args.workers}', flush=True)
+patience_left = args.patience if args.schedule == 'plateau' else args.epochs  # no early stopping under cosine; run to completion
+print(f'Starting training: {args.epochs} epochs, batch {args.batch_size}, workers {args.workers}', flush=True)
 for epoch in range(start_epoch, args.epochs):
     t_ep = time.time()
     model.train()
@@ -184,7 +184,7 @@ for epoch in range(start_epoch, args.epochs):
         total += loss.item() * data.num_graphs
         n += data.num_graphs
         if (bi + 1) % 500 == 0:
-            print(f'  epoch {epoch+1}: {bi+1}/{len(train_loader)} 步, 已用 {time.time()-t_ep:.0f}s, loss {loss.item():.4f}', flush=True)
+            print(f'  epoch {epoch+1}: {bi+1}/{len(train_loader)} steps, elapsed {time.time()-t_ep:.0f}s, loss {loss.item():.4f}', flush=True)
     train_rmse = (total / n) ** 0.5
 
     if (epoch + 1) % args.val_every == 0 or epoch + 1 == args.epochs:
@@ -217,12 +217,12 @@ for epoch in range(start_epoch, args.epochs):
     print(f'Epoch {epoch+1:3d}/{args.epochs}  lr={lr:.1e}  train_rmse={train_rmse:.4f}  '
           f'val_rmse={val_rmse:.4f}  best={best_val:.4f}  {sec:.0f}s/epoch', flush=True)
     if patience_left <= 0:
-        print(f'早停: val 连续 {args.patience} epoch 无改善')
+        print(f'Early stopping: no val improvement for {args.patience} consecutive epochs')
         break
 
-# ===== 测试集评估 (反标准化, 逐性质 R²) =====
+# ===== Test-set evaluation (de-normalised, per-property R²) =====
 print('=' * 70)
-print('测试集评估 (13,547, 反标准化)')
+print('Test-set evaluation (13,547, de-normalised)')
 print('=' * 70)
 model.load_state_dict(torch.load(os.path.join(SCRIPT_DIR, 'dimenetpp_best.pt'), map_location=device, weights_only=False)['model'])
 test_pred, test_y = evaluate(test_loader)
@@ -241,4 +241,4 @@ print(f'{"mean":<15} {np.mean(r2s):>8.4f} {np.mean(maes):>10.4f}')
 np.savez(os.path.join(SCRIPT_DIR, 'dimenet_test_preds.npz'),
          y_true=true_unstd, y_pred=pred_unstd, targets=np.array(TARGETS))
 print('saved: dimenet_test_preds.npz')
-print(f'[verify] mean R2 = {np.mean(r2s):.4f}   (对照: 3D GAT 集成 0.903 / SMILES GAT 0.932, 同一 13,547 测试集)')
+print(f'[verify] mean R2 = {np.mean(r2s):.4f}   (reference: 3D GAT ensemble 0.903 / SMILES GAT 0.932, same 13,547 test set)')

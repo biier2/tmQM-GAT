@@ -11,19 +11,19 @@ def add_md(src, cid):
     cells.append({"cell_type": "markdown", "metadata": {}, "source": src.split('\n'), "id": cid})
 
 # Cell 1: Intro
-add_md("""# 消融实验: tmQM GNN (20k采样, 快速对比)
+add_md("""# Ablation study: tmQM GNN (20k sample, quick comparison)
 
-## 实验设计
+## Experimental design
 
-| ID | 消融维度 | 基线 | 变体 | 回答的问题 |
+| ID | Ablation dimension | Baseline | Variant | Question answered |
 |----|----------|------|------|-----------|
-| A | 注意力头数 | 4 | 8, 12 | 头数越多越好？ |
-| B | 网络深度 | 3层 | 4层, 5层 | 加深是否过平滑？ |
-| C | 金属池化 | on | off | 金属单独池化有贡献吗？ |
-| D | Fe加权 | off (1x) | on (3x) | Fe加权帮助还是过拟合？ |
+| A | Number of attention heads | 4 | 8, 12 | Do more heads help? |
+| B | Network depth | 3 layers | 4 layers, 5 layers | Does going deeper over-smooth? |
+| C | Metal pooling | on | off | Does separate metal pooling contribute? |
+| D | Fe weighting | off (1x) | on (3x) | Does Fe weighting help, or does it overfit? |
 
-每个配置: 20k配合物, 100 epochs, batch=64, hidden=256, 4 layers, 8 heads (基线).
-训练时间: ~30 min/配置, 8个配置 ~4小时.""", "eq_intro")
+Each configuration: 20k complexes, 100 epochs, batch=64, hidden=256, 4 layers, 8 heads (baseline).
+Training time: ~30 min per configuration, ~4 hours for 8 configurations.""", "eq_intro")
 
 # Cell 2: Data
 add_code("""import numpy as np, pandas as pd, time, json
@@ -158,7 +158,7 @@ def scatter_max_per_graph(h, batch, n):
     return out
 
 class AblationGNN(nn.Module):
-    # 可配置消融模型: hidden, n_layers, heads, use_metal_pool 均可变
+    # Configurable ablation model: hidden, n_layers, heads, use_metal_pool are all variable
     def __init__(self, hidden=256, n_layers=4, heads=8, dropout=0.20, use_metal_pool=True):
         super().__init__()
         self.heads = heads; self.use_metal_pool = use_metal_pool

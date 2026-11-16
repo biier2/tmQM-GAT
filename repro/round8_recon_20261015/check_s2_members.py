@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""只读：补核表 S2 的 member mean R2 / member SD 两列在两个子集上是否同值。"""
+"""Read-only: verify whether the member mean R2 / member SD columns of supplementary table S2 have the same values on the two subsets."""
 import os
 import sys
 
@@ -25,7 +25,7 @@ for name, si_mem, si_sd in (('test_preds_SchNet.npz', SI_T7_MEM, SI_T7_SD),
         mem = np.zeros(8); sd = np.zeros(8)
         for j in range(8):
             per = np.array([r2_score(yt[idx, j], preds[m, idx, j]) for m in range(preds.shape[0])])
-            mem[j] = per.mean(); sd[j] = per.std()  # 总体 SD（ddof=0）
+            mem[j] = per.mean(); sd[j] = per.std()  # population SD (ddof=0)
         d_mem = np.abs(np.round(mem, 3) - np.array(si_mem))
         d_sd = np.abs(np.round(sd, 3) - np.array(si_sd))
         print('  [%s] member mean R2 =' % label, ' '.join('%.4f' % v for v in mem),

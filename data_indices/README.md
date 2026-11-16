@@ -10,8 +10,8 @@ Small NumPy/JSON records that define the cohorts, splits, and analysis subsets u
 | `vA_rebuild.npz` | `kept_idx` (90,317): indices, into the intermediate kept space of 90,335, of the complexes retained in the final main domain. |
 | `vA_removed_kept.npy` | (18,) int32: positions removed from the 90,335-complex intermediate to obtain the 90,317-complex main domain (generated during the main-domain rebuild; see `gat/build_vA_graphs_local.py`, `gat/rebuild_vA_verbatim.py`). |
 | `r5_overlap_idx.npy` | (2,262,) int32: test-set indices involved in the SMILES-overlap sensitivity analysis (`analysis/r5_overlap_sensitivity.py`). |
-| `te_match_flags.npy` | (13,547,) int8: per-test-complex element-preserving match flags from the atom-matching survey (`misc/dev_scripts/survey_atom_matching.py`). |
-| `te_frac_miss.npy` | (13,547,) float64: per-test-complex fraction of atoms lacking an element-preserving match (`misc/dev_scripts/survey_atom_matching2.py`). |
+| `te_match_flags.npy` | (13,547,) int8: per-test-complex element-preserving match flags from the atom-matching survey (`archive/misc_dev_scripts/survey_atom_matching.py`). |
+| `te_frac_miss.npy` | (13,547,) float64: per-test-complex fraction of atoms lacking an element-preserving match (`archive/misc_dev_scripts/survey_atom_matching2.py`). |
 | `spin_map.json` | `{"spin": {CSD_code: S}, "charge": {CSD_code: q}}` extracted from the released `tmQM_X*.xyz.gz` headers (`analysis/extract_spin.py`). |
 | `README_paper_domain_vA.md` | Original notes that accompanied the main-domain build. |
 | `retained_ids.csv` | 90,377 retained complexes: `csv_idx, csd_code`. Row number (header excluded) is the **domain index** used by every array in the domain tensors and prediction archives (`repro/review_package_20261021/export_indices.py`). |

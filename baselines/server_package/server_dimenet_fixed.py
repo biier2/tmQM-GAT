@@ -1,31 +1,31 @@
 # -*- coding: utf-8 -*-
 """
-DimeNet++ baseline（数据修复版）
+DimeNet++ baseline (data-fixed version)
 
-根因与 SchNet 完全相同：原 preprocess_dimenet.py 用
-    parse_one(..., start_idx=len(all_m))      # ✗ all_m 是"累计保留的 TM 数"，不是"累计块数"
-导致 part 2/3（约 2/3 数据）的 csv_idx 系统性偏移、标签取到别的络合物。
-这正是 old train log 的典型标签噪声特征：train_rmse 一路降到 0.35（模型在记忆 2/3 的随机
-标签），而 val_rmse 260 个 epoch 死死钉在 0.956（≈ 均值预测）。
+Root cause identical to SchNet: the original preprocess_dimenet.py used
+    parse_one(..., start_idx=len(all_m))      # ✗ all_m is the "cumulative number of retained TM complexes", not the "cumulative number of blocks"
+so csv_idx for parts 2/3 (about 2/3 of the data) was systematically offset and labels were taken from other complexes.
+This is exactly the typical label-noise signature of the old train log: train_rmse fell all the way to 0.35 (the model was
+memorising the random labels of 2/3 of the data), while val_rmse stayed pinned at 0.956 for 260 epochs (≈ mean prediction).
 
-本脚本：架构与超参与原 DimeNet++ 完全一致（PyG DimeNetPlusPlus: hidden 128, 4 interaction
+This script: architecture and hyperparameters exactly identical to the original DimeNet++ (PyG DimeNetPlusPlus: hidden 128, 4 interaction
         blocks, int_emb 64, basis_emb 8, out_emb 256, num_spherical 7, num_radial 6,
-        cutoff 5.0 Å, envelope 5, 3 层输出 MLP；半径图 r=5.0 / 每节点 ≤32 近邻；
-        bs=8, AdamW wd=1e-4, clip 5.0），仅做两件事：
-        (1) 用正确的坐标（schnet_domain_coords.npz，全局块索引提取，元素 100% 对齐）
-            和正确的标签（new_domain_iso.pt 的 y_all）
-        (2) 与 SchNet 修复版 / GAT 四变体相同的域与划分
+        cutoff 5.0 Å, envelope 5, 3-layer output MLP; radius graph r=5.0 / ≤32 neighbours per node;
+        bs=8, AdamW wd=1e-4, clip 5.0), doing only two things:
+        (1) use the correct coordinates (schnet_domain_coords.npz, extracted by global block index, elements 100% aligned)
+            and the correct labels (y_all of new_domain_iso.pt)
+        (2) the same domain and split as the SchNet fixed version / four GAT variants
 
-⚠️ 运行时长：实测约 220 s/epoch（51,214 训练 + 验证）。默认 --epochs 300（= 撤稿 pilot 的
-   原协议，warmup 10 + cosine 1e-3→1e-5 + 不早停），单模型 ≈ 18.3 h。
-   默认 --folds 0 --seeds 42 123 456 = 3 个模型 ≈ 55 小时。
-   要 9 模型（与 SchNet/GAT 变体一致的 3 折 × 3 种子）用 --folds 0 1 2，约 165 小时。
-   ★ 可分两段跑：先 --folds 0（3 模型），之后用 --folds 0 1 2 重跑会自动跳过已完成的
-     (fold, seed) 只补余下 6 个，最后统一评估全部模型 —— 不会重复训练。
+⚠️ Runtime: measured at about 220 s/epoch (51,214 training + validation). The default --epochs 300 (= the original
+   protocol of the retracted pilot, warmup 10 + cosine 1e-3→1e-5 + no early stopping) gives ≈ 18.3 h per model.
+   The default --folds 0 --seeds 42 123 456 = 3 models ≈ 55 hours.
+   For 9 models (3 folds × 3 seeds, consistent with the SchNet/GAT variants) use --folds 0 1 2, about 165 hours.
+   ★ Can be run in two stages: first --folds 0 (3 models), then re-running with --folds 0 1 2 automatically skips
+     the completed (fold, seed) pairs and only trains the remaining 6, and finally evaluates all models together — no repeated training.
 
-用法：
-    python server_dimenet_fixed.py --smoke                 # 2 分钟冒烟
-    python server_dimenet_fixed.py --subset 2000 --epochs 60   # ~40 分钟小样本拟合诊断
+Usage:
+    python server_dimenet_fixed.py --smoke                 # 2-minute smoke test
+    python server_dimenet_fixed.py --subset 2000 --epochs 60   # ~40-minute small-sample fit diagnostic
     nohup python server_dimenet_fixed.py > train_dimenet_fixed.log 2>&1 &
 """
 import os, sys, time, json, argparse, contextlib
@@ -49,23 +49,23 @@ TARGETS = ['gap', 'homo', 'lumo', 'dipole', 'metal_charge', 'E_elec', 'E_disp', 
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--epochs', type=int, default=300,
-                help='默认 300 = 撤稿 pilot 的原协议；cosine 调度按此值展开，改小会截断退火')
-ap.add_argument('--batch-size', type=int, default=8, help='原 DimeNet++ 用 8；16GB 卡可试 16')
+                help='default 300 = the original protocol of the retracted pilot; the cosine schedule is expanded over this value, lowering it truncates the annealing')
+ap.add_argument('--batch-size', type=int, default=8, help='the original DimeNet++ used 8; a 16GB card can try 16')
 ap.add_argument('--lr', type=float, default=1e-3)
 ap.add_argument('--weight-decay', type=float, default=1e-4)
 ap.add_argument('--warmup', type=int, default=10)
 ap.add_argument('--min-lr', type=float, default=1e-5)
 ap.add_argument('--hidden', type=int, default=128)
 ap.add_argument('--blocks', type=int, default=4)
-ap.add_argument('--folds', type=int, nargs='+', default=[0], help='用哪些 fold（默认只有 0）')
+ap.add_argument('--folds', type=int, nargs='+', default=[0], help='which folds to use (default is only 0)')
 ap.add_argument('--seeds', type=int, nargs='+', default=[42, 123, 456])
-ap.add_argument('--val-every', type=int, default=5, help='每 N epoch 评估一次验证集（省时间）')
-ap.add_argument('--workers', type=int, default=0, help='0=主进程加载，避免 CUDA fork 死锁')
+ap.add_argument('--val-every', type=int, default=5, help='evaluate the validation set every N epochs (saves time)')
+ap.add_argument('--workers', type=int, default=0, help='0=load in the main process, avoiding CUDA fork deadlock')
 ap.add_argument('--smoke', action='store_true')
-ap.add_argument('--subset', type=int, default=0, help='诊断：只用前 N 个训练分子')
+ap.add_argument('--subset', type=int, default=0, help='diagnostic: use only the first N training molecules')
 args = ap.parse_args()
-# 全程 FP32 + TF32：PyG 稀疏算子与 autocast 组合风险高（SchNet 那次 fp16 溢出就是教训），
-# 且原 DimeNet++ 实测就是 FP32（220 s/epoch），换成 AMP 收益不确定。
+# Full FP32 + TF32 throughout: combining PyG sparse operators with autocast is risky (the SchNet fp16 overflow was the lesson),
+# and the original DimeNet++ was measured in FP32 (220 s/epoch); the benefit of switching to AMP is uncertain.
 
 if args.smoke:
     args.epochs, args.batch_size, args.val_every = 2, 4, 1
@@ -76,9 +76,9 @@ print(f'Device: {device}')
 if torch.cuda.is_available():
     p = torch.cuda.get_device_properties(0)
     print(f'GPU: {torch.cuda.get_device_name(0)}  VRAM {p.total_memory/1024**3:.1f}GB')
-print(f'配置: epochs={args.epochs} bs={args.batch_size} lr={args.lr} folds={args.folds} seeds={args.seeds}')
+print(f'Config: epochs={args.epochs} bs={args.batch_size} lr={args.lr} folds={args.folds} seeds={args.seeds}')
 
-# ---------------- 数据（与 server_schnet_fixed.py 逐行同源）----------------
+# ---------------- Data (line-for-line same source as server_schnet_fixed.py)----------------
 D = torch.load('new_domain_iso.pt', map_location='cpu', weights_only=False)
 y_all = D['y_all'].float()
 N = y_all.size(0)
@@ -86,9 +86,9 @@ atoms_filt = D['atoms_filt']
 coords_np = np.load('schnet_domain_coords.npz')
 COORDS = coords_np['coords']; LENS = coords_np['lens']
 assert len(LENS) == N and LENS.sum() == len(COORDS), f'{len(LENS)} {LENS.sum()} {len(COORDS)}'
-print(f'域 N={N:,}，原子总数 {len(COORDS):,}，平均 {len(COORDS)/N:.1f} 原子/络合物')
+print(f'Domain N={N:,}, total atoms {len(COORDS):,}, mean {len(COORDS)/N:.1f} atoms/complex')
 
-# 一次性切出每个络合物的 pos / z（避免每 epoch 重切）
+# Slice out pos / z for each complex once (avoids re-slicing every epoch)
 POS, ZS = [], []
 off = 0
 for i in range(N):
@@ -96,20 +96,20 @@ for i in range(N):
     POS.append(torch.as_tensor(COORDS[off:off + n], dtype=torch.float32))
     off += n
     ZS.append(torch.as_tensor(np.asarray(atoms_filt[i]), dtype=torch.long))
-print(f'pos/z 切分完成（{time.time():.0f}）')
+print(f'pos/z slicing done ({time.time():.0f})')
 
-# ---------------- 划分（与 GAT 变体 / SchNet 相同）----------------
+# ---------------- Split (same as the GAT variants / SchNet)----------------
 te_stored = np.asarray(D['te_idx'])
 idx_all = np.random.RandomState(42).permutation(N)
 n_test = len(te_stored)
 te_idx = idx_all[:n_test].copy()
 cv_idx = idx_all[n_test:].copy()
-assert np.array_equal(te_idx, te_stored), 'te_idx 与 new_domain_iso.pt 存储的不一致'
+assert np.array_equal(te_idx, te_stored), 'te_idx does not match the one stored in new_domain_iso.pt'
 kf = KFold(n_splits=3, shuffle=True, random_state=42)
 fold_splits = list(kf.split(cv_idx))
 print(f'Test {len(te_idx):,} | CV {len(cv_idx):,}')
 
-# ---------------- 模型 ----------------
+# ---------------- Model ----------------
 def build_model():
     return DimeNetPlusPlus(
         hidden_channels=args.hidden, out_channels=len(TARGETS), num_blocks=args.blocks,
@@ -123,12 +123,12 @@ print(f'DimeNetPlusPlus: hidden={args.hidden} blocks={args.blocks} out=8  '
 del _m
 
 def make_loader(sel, tag, shuffle, bs):
-    """按索引构 Data 列表。z-score 用训练集统计（评估时反标准化）。"""
+    """Build the Data list from indices. z-score uses training-set statistics (de-normalised at evaluation)."""
     data = []
     for k in sel:
         data.append(Data(z=ZS[k], pos=POS[k],
                          y=((y_all[k] - ym_cpu) / ys_cpu).view(1, -1)))
-    print(f'  [{tag}] {len(data):,} 分子', flush=True)
+    print(f'  [{tag}] {len(data):,} molecules', flush=True)
     return DataLoader(data, batch_size=bs, shuffle=shuffle, num_workers=args.workers)
 
 @torch.no_grad()
@@ -159,7 +159,7 @@ def train_one(tr_abs, va_abs, seed, name):
         for d in tr_loader:
             d = d.to(device)
             opt.zero_grad()
-            # DimeNet++ 前向内部自建半径图（与 PyG 参考实现一致）
+            # DimeNet++ builds the radius graph internally in the forward pass (consistent with the PyG reference implementation)
             loss = F.mse_loss(model(d.z, d.pos, d.batch), d.y)
             if not torch.isfinite(loss):
                 for gp in opt.param_groups: gp['lr'] *= 0.5
@@ -198,13 +198,13 @@ def train_one(tr_abs, va_abs, seed, name):
     if torch.cuda.is_available(): torch.cuda.empty_cache()
     return best_state
 
-# ---------------- 主循环 ----------------
-ym_cpu = y_all[cv_idx].mean(0)          # 占位，每个模型内用训练集统计重算
+# ---------------- Main loop ----------------
+ym_cpu = y_all[cv_idx].mean(0)          # placeholder; recomputed inside each model from training-set statistics
 ys_cpu = y_all[cv_idx].std(0).clamp(min=1e-8)
 
-# ⚠️ 冒烟必须用独立 checkpoint：--smoke 训的是"128 分子 × 2 epoch"的废模型，若写进正式
-# checkpoint，正式跑一启动就会 "Restored 1 models / SKIP Fold0_Seed42"，把这个废模型当成
-# 一个正式集成成员（2026-09-18 实际踩过，3 模型集成被拖到 0.832）。
+# ⚠️ Smoke tests must use a separate checkpoint: --smoke trains a junk model of "128 molecules × 2 epochs", and if it is written into the official
+# checkpoint, the official run immediately does "Restored 1 models / SKIP Fold0_Seed42" and treats this junk model as
+# a genuine ensemble member (actually hit on 2026-09-18; the 3-model ensemble was dragged down to 0.832).
 CKPT = 'smoke_checkpoint_DimeNet.pt' if args.smoke else 'ensemble_checkpoint_DimeNet.pt'
 all_models, log = [], []
 done = set()
@@ -225,7 +225,7 @@ for fi in args.folds:
         if (fi, seed) in done:
             print(f'  SKIP Fold{fi}_Seed{seed}'); continue
         name = f'Fold{fi}_Seed{seed}'
-        # z-score 统计量：每个模型用自己训练集的（与 SchNet/GAT 一致）
+        # z-score statistics: each model uses its own training set (consistent with SchNet/GAT)
         ym_cpu = y_all[tr_full].mean(0)
         ys_cpu = y_all[tr_full].std(0).clamp(min=1e-8)
         t1 = time.time()
@@ -239,7 +239,7 @@ for fi in args.folds:
         print(f'  Done {name} in {el:.1f} min', flush=True)
         torch.save({'models': all_models, 'log': log}, CKPT)
 
-# ---------------- 测试集评估 ----------------
+# ---------------- Test-set evaluation ----------------
 print('Test eval...', flush=True)
 preds = []
 for m in all_models:

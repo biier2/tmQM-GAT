@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
 """
-SchNet baseline（数据修复版）
+SchNet baseline (data-fixed version)
 
-根因：原 schnet_lr_scan.py / rebuild_schnet.py / preprocess_dimenet.py 都用
-      parse(..., start_idx=len(all_m))，把"累计保留的 TM 数"当成"累计块数"，
-      导致 part 2/3（约 2/3 数据）的 csv_idx 系统性偏移、标签取到别的络合物。
-      这解释了为什么 SchNet lr=1e-3 时 R²≈0（best_va=0.9937 ≈ 均值预测）
-      且"学习率越小越好"（梯度噪声大）。
+Root cause: the original schnet_lr_scan.py / rebuild_schnet.py / preprocess_dimenet.py all used
+      parse(..., start_idx=len(all_m)), treating the "cumulative number of retained TM complexes" as the "cumulative number of blocks",
+      so csv_idx for parts 2/3 (about 2/3 of the data) was systematically offset and labels were taken from other complexes.
+      This explains why SchNet gave R²≈0 at lr=1e-3 (best_va=0.9937 ≈ mean prediction)
+      and why "the smaller the learning rate, the better" (large gradient noise).
 
-本脚本：架构与超参与原 SchNet 完全一致（20 RBF σ=0.1, atom emb 85, 5×384d CFConv,
-        mean+sum pooling, MLP 768→384→192→8, bs=64, AdamW wd=1e-4, clip 1.0），
-        仅做两件事：
-        (1) 用正确的坐标（schnet_domain_coords.npz，全局块索引提取，元素已 100% 对齐）
-            和正确的标签（new_domain_iso.pt 的 y_all）
-        (2) 用与 GAT 完全相同的划分（15% held-out 13,556 + 3-fold CV × 3 seed = 9 模型）
-        学习率 1e-3 —— 与 GAT 主实验同协议。
+This script: architecture and hyperparameters exactly identical to the original SchNet (20 RBF σ=0.1, atom emb 85, 5×384d CFConv,
+        mean+sum pooling, MLP 768→384→192→8, bs=64, AdamW wd=1e-4, clip 1.0),
+        doing only two things:
+        (1) use the correct coordinates (schnet_domain_coords.npz, extracted by global block index, elements already 100% aligned)
+            and the correct labels (y_all of new_domain_iso.pt)
+        (2) use exactly the same split as GAT (15% held-out 13,556 + 3-fold CV × 3 seed = 9 models)
+        Learning rate 1e-3 — same protocol as the main GAT experiments.
 """
 import os, sys, time, json, copy, contextlib
 import numpy as np
@@ -31,7 +31,7 @@ torch.backends.cuda.enable_flash_sdp(True)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Device: {device}')
-# AMP 设置（可在训练前后统一使用）；SCHNET_FP32=1 环境变量可强制关闭 AMP
+# AMP settings (can be used uniformly before and after training); the SCHNET_FP32=1 environment variable forces AMP off
 AMP_DEV_G = device.type
 AMP_DTYPE_G = None if os.environ.get('SCHNET_FP32') else torch.bfloat16
 print(f'AMP: {AMP_DTYPE_G if AMP_DTYPE_G else "disabled (FP32)"}')
@@ -39,7 +39,7 @@ if torch.cuda.is_available():
     p = torch.cuda.get_device_properties(0)
     print(f'GPU: {torch.cuda.get_device_name(0)} VRAM {p.total_memory/1024**3:.1f}GB')
 
-# ---------------- 数据 ----------------
+# ---------------- Data ----------------
 D = torch.load('new_domain_iso.pt', map_location='cpu', weights_only=False)
 y_all = D['y_all'].float()
 N = y_all.size(0)
@@ -47,9 +47,9 @@ atoms_filt = D['atoms_filt']
 coords_np = np.load('schnet_domain_coords.npz')
 COORDS = coords_np['coords']; LENS = coords_np['lens']
 assert len(LENS) == N and LENS.sum() == len(COORDS), f'{len(LENS)} {LENS.sum()} {len(COORDS)}'
-print(f'新域 N={N:,}，原子总数 {len(COORDS):,}，平均 {len(COORDS)/N:.1f} 原子/络合物')
+print(f'New domain N={N:,}, total atoms {len(COORDS):,}, mean {len(COORDS)/N:.1f} atoms/complex')
 
-# ---------------- 图构建（KNN K=32，与原 SchNet 一致）----------------
+# ---------------- Graph construction (KNN K=32, consistent with the original SchNet)----------------
 K_NEIGHBORS, CUTOFF = 32, 5.0
 N_RBF, RBF_SIGMA = 20, 0.1
 rbf_centers = torch.linspace(0.0, CUTOFF, N_RBF)
@@ -75,20 +75,20 @@ for i in range(N):
     ZS.append(zs); EIS.append(torch.stack([s, d_])); DS.append(dd)
     if (i + 1) % 20000 == 0:
         print(f'  ...{i+1}/{N} graphs [{time.time()-t0:.0f}s]', flush=True)
-print(f'图构建完成: {N:,} 图, {sum(len(d) for d in DS)/1e6:.1f}M 边, {time.time()-t0:.0f}s')
+print(f'Graph construction done: {N:,} graphs, {sum(len(d) for d in DS)/1e6:.1f}M edges, {time.time()-t0:.0f}s')
 
-# ---------------- 划分（与 GAT 完全一致）----------------
+# ---------------- Split (exactly the same as GAT)----------------
 te_stored = np.asarray(D['te_idx'])
 idx_all = np.random.RandomState(42).permutation(N)
 n_test = len(te_stored)
 te_idx = idx_all[:n_test].copy()
 cv_idx = idx_all[n_test:].copy()
-assert np.array_equal(te_idx, te_stored), 'te_idx 与 new_domain_iso.pt 存储的不一致'
+assert np.array_equal(te_idx, te_stored), 'te_idx does not match the one stored in new_domain_iso.pt'
 kf = KFold(n_splits=3, shuffle=True, random_state=42)
 fold_splits = list(kf.split(cv_idx))
-print(f'Test {len(te_idx):,} | CV {len(cv_idx):,}  (te_idx 与 new_domain_iso.pt 逐位一致)')
+print(f'Test {len(te_idx):,} | CV {len(cv_idx):,}  (te_idx bit-for-bit identical to new_domain_iso.pt)')
 
-# ---------------- 模型（与原 SchNet 逐字一致）----------------
+# ---------------- Model (verbatim identical to the original SchNet)----------------
 HIDDEN, N_LAYERS, N_ATOM_TYPES, DROPOUT = 384, 5, 85, 0.10
 
 class CFConv(nn.Module):
@@ -129,9 +129,9 @@ class SchNet(nn.Module):
         sum_h = mean_h * cnt.unsqueeze(-1)
         return self.readout(torch.cat([mean_h, sum_h], dim=1))
 
-# ---------------- 训练 ----------------
+# ---------------- Training ----------------
 def amp_ctx():
-    """AMP 上下文；SCHNET_FP32=1 时退化为 nullcontext（纯 FP32）"""
+    """AMP context; degrades to nullcontext (pure FP32) when SCHNET_FP32=1"""
     if AMP_DTYPE_G is None:
         return contextlib.nullcontext()
     return autocast(AMP_DEV_G, dtype=AMP_DTYPE_G)
@@ -145,8 +145,8 @@ def collate(indices):
         bl.append(torch.full((n,), k, dtype=torch.long)); o += n
     dcat = torch.cat(dl)
     rbf = torch.exp(-(dcat[:, None] - rbf_centers.to(dcat.device)) ** 2 / (2 * RBF_SIGMA ** 2))
-    # 直接同步传输（不做 stream overlap）：SchNet 是计算瓶颈，传输不是；
-    # 且异步传输若不同步会让模型读到未传完的索引 -> device-side assert
+    # Direct synchronous transfer (no stream overlap): SchNet is compute-bound, not transfer-bound;
+    # and unsynchronised async transfers would let the model read indices not yet fully copied -> device-side assert
     return {'z': torch.cat(zl).to(device),
             'edge_index': torch.cat(eil, dim=1).to(device),
             'edge_rbf': rbf.to(device),
@@ -158,9 +158,9 @@ def train_one(tr_abs, va_abs, seed, name, bs=64, epochs=200, early=40, lr=1e-3):
     model = SchNet().to(device)
     opt = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     crit = nn.MSELoss()
-    # 用 bfloat16 而非 float16：模型含 sum_h = mean_h * cnt (cnt~65) 这类大尺度中间量，
-    # FP16 的动态范围(max 65504)会溢出 -> inf -> NaN；bf16 指数位与 FP32 相同，不会溢出，
-    # 速度与 FP16 相当，且不需要 GradScaler。
+    # Use bfloat16 rather than float16: the model contains large-magnitude intermediates such as sum_h = mean_h * cnt (cnt~65),
+    # and FP16's dynamic range (max 65504) would overflow -> inf -> NaN; bf16 has the same exponent bits as FP32, so it does not overflow,
+    # runs at a speed comparable to FP16, and does not need a GradScaler.
     global AMP_DTYPE_G, AMP_DEV_G
     AMP_DTYPE = AMP_DTYPE_G = None if os.environ.get('SCHNET_FP32') else torch.bfloat16
     AMP_DEV = AMP_DEV_G = device.type
@@ -183,7 +183,7 @@ def train_one(tr_abs, va_abs, seed, name, bs=64, epochs=200, early=40, lr=1e-3):
             with amp_ctx():
                 loss = crit(model(batched), yn[bi])
             if not torch.isfinite(loss):
-                # 自适应退避：若是优化不稳（而非精度）导致的非有限 loss，减半学习率后继续
+                # Adaptive backoff: if the non-finite loss is caused by unstable optimisation (rather than precision), halve the learning rate and continue
                 for gp in opt.param_groups:
                     gp['lr'] *= 0.5
                 print(f'  [{name}] WARN: non-finite loss at ep{ep+1}; batch skipped, '
@@ -212,7 +212,7 @@ def train_one(tr_abs, va_abs, seed, name, bs=64, epochs=200, early=40, lr=1e-3):
         else:
             pat += 1
         if (ep + 1) % 10 == 0 or ep < 5:
-            # 顺带报 val 的原始尺度 mean R²，便于早期判断数据修复是否生效
+            # Also report the mean R² of val on the original scale, to judge early whether the data fix is working
             vpo = vp.cpu().numpy() * ys.cpu().numpy() + ym.cpu().numpy()
             vt = y_all[va_abs].numpy()
             if np.isfinite(vpo).all():
@@ -258,7 +258,7 @@ for fi in range(3):
         print(f'  Done {name} in {el:.1f} min', flush=True)
         torch.save({'models': all_models, 'log': log}, CKPT)
 
-# ---------------- 测试集评估 ----------------
+# ---------------- Test-set evaluation ----------------
 print('Test eval...', flush=True)
 preds = []
 for m in all_models:

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""训练/测试 SMILES 组成重叠敏感性分析（纯推理，不动模型）
-- 重推 SMILES 部署检查点 tmqm_gat_best.pt 的逐条预测（13,547 测试集, CPU）
-- 3D: ensemble_predictions.npz 已有集成均值
-- 口径1: CSD_code 重叠（应为 0）
-- 口径2: canonical SMILES 重叠 -> 剔除重叠行后重算 dipole(及全 8 性质) R2
-输出: m1_overlap_sensitivity.json
+"""Training/test SMILES composition overlap sensitivity analysis (inference only, models untouched)
+- Re-infer the per-record predictions of the SMILES deployment checkpoint tmqm_gat_best.pt (13,547 test set, CPU)
+- 3D: ensemble_predictions.npz already has the ensemble mean
+- Criterion 1: CSD_code overlap (expected 0)
+- Criterion 2: canonical SMILES overlap -> recompute dipole (and all 8 properties) R2 after removing overlapping rows
+Output: m1_overlap_sensitivity.json
 """
 import sys, json, warnings
 sys.stdout.reconfigure(encoding='utf-8')
@@ -18,7 +18,7 @@ device = torch.device('cpu')
 OUT_JSON = 'server_ckpt_r2.json'
 OUT_NPY = 'server_ckpt_preds.npy'
 
-# ===== 1. 数据 =====
+# ===== 1. Data =====
 ep = np.load('ensemble_predictions.npz')
 y_true = ep['y_true']; xyz_mean = ep['mean']
 df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')
@@ -180,7 +180,7 @@ with torch.no_grad():
 smiles_preds = np.concatenate(preds, axis=0)
 print(f'smiles_preds: {smiles_preds.shape}')
 
-# ===== 2. 重叠口径 =====
+# ===== 2. Overlap criteria =====
 def canon(s):
     if not isinstance(s, str) or s == '': return None
     m = Chem.MolFromSmiles(s)
@@ -200,7 +200,7 @@ csd_overlap = [i for i in range(len(te_rows)) if te_csd[i] in rest_csd]
 smi_overlap = [i for i in range(len(te_rows)) if te_canon[i] is not None and te_canon[i] in rest_set]
 print(f'CSD overlap rows: {len(csd_overlap)}; SMILES overlap rows: {len(smi_overlap)}')
 
-# ===== 3. 对齐预测与标签 =====
+# ===== 3. Align predictions with labels =====
 keep = np.array([i for i in range(len(te_smiles)) if i not in bad])
 y_t = y_true[np.array(matched_idx)[keep]]
 x_t = xyz_mean[np.array(matched_idx)[keep]]
@@ -223,7 +223,7 @@ for prop_i, prop in enumerate(targets):
     res[prop] = {'full_SMILES': round(full_s,4), 'full_3D': round(full_x,4),
                  'nonoverlap_SMILES': round(no_s,4), 'nonoverlap_3D': round(no_x,4),
                  'overlap_SMILES': round(o_s,4), 'overlap_3D': round(o_x,4)}
-    print(f'{prop:14s} full S{full_s:.4f}/X{full_x:.4f} | 非重叠 S{no_s:.4f}/X{no_x:.4f} | 重叠 S{o_s:.4f}/X{o_x:.4f}')
+    print(f'{prop:14s} full S{full_s:.4f}/X{full_x:.4f} | non-overlap S{no_s:.4f}/X{no_x:.4f} | overlap S{o_s:.4f}/X{o_x:.4f}')
 
 with open(OUT_JSON, 'w', encoding='utf-8') as f:
     json.dump(res, f, ensure_ascii=False, indent=2)

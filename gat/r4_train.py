@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""R4: 跨泛函 Mayer BO 对照实验 — 训练 (服务器 GPU)
-数据: r4_graphs.pt (74k tmQMg 图, ωB97M-V 标签 7 性质)
-模型A: SMILES GAT (node 8d / edge 6d)  模型B: SMILES + TPSSh BO 增广 (node 11d / edge 6d)
-协议: 论文同款 (12头×32d×5层, readout 1152->384->192->7, AdamW lr=1e-3, AMP,
-      BATCH=128, EPOCHS=150, EARLY_STOP=40, 划分 RandomState(42) 70/15/15, 3 seeds)
-性能: numpy 向量化 collate + DataLoader 多进程 (NW=8) + pin_memory + 异步传输
-输出: r4_results.json — per-config per-seed per-prop R²/MAE
+"""R4: cross-functional Mayer BO control experiment — training (server GPU)
+Data: r4_graphs.pt (74k tmQMg graphs, ωB97M-V labels for 7 properties)
+Model A: SMILES GAT (node 8d / edge 6d)  Model B: SMILES + TPSSh BO augmentation (node 11d / edge 6d)
+Protocol: same as the manuscript (12 heads×32d×5 layers, readout 1152->384->192->7, AdamW lr=1e-3, AMP,
+      BATCH=128, EPOCHS=150, EARLY_STOP=40, split RandomState(42) 70/15/15, 3 seeds)
+Performance: numpy-vectorised collate + DataLoader multiprocessing (NW=8) + pin_memory + asynchronous transfer
+Output: r4_results.json — per-config per-seed per-prop R²/MAE
 """
 import json, os, sys
 import numpy as np
@@ -28,9 +28,9 @@ EARLY_STOP = int(os.environ.get('R4_EARLY_STOP', '40'))
 N_OUT = 7
 SEEDS = [int(x) for x in os.environ.get('R4_SEEDS', '42,123,456').split(',')]
 SMOKE = int(os.environ.get('R4_SMOKE', '0'))
-NW = int(os.environ.get('R4_NW', '8'))      # DataLoader 进程数 (16 核给 8)
+NW = int(os.environ.get('R4_NW', '8'))      # number of DataLoader processes (8 out of 16 cores)
 
-# ---------- 数据 ----------
+# ---------- Data ----------
 data = torch.load('r4_graphs.pt', weights_only=False)
 graphs = [{'x': torch.tensor(g['x11'], dtype=torch.float32),
            'edge_index': torch.tensor(g['edge_index'], dtype=torch.long),
@@ -40,18 +40,18 @@ y_all = data['y']
 if SMOKE:
     graphs = graphs[:SMOKE]
     y_all = y_all[:SMOKE]
-    print(f'[SMOKE] 子集 {SMOKE} 图', flush=True)
-print(f'数据: {len(graphs)} 图, 标签 {y_all.shape}, NW={NW}', flush=True)
+    print(f'[SMOKE] subset {SMOKE} graphs', flush=True)
+print(f'data: {len(graphs)} graphs, labels {y_all.shape}, NW={NW}', flush=True)
 
 idx = np.random.RandomState(42).permutation(len(graphs))
 n_tr = int(len(graphs) * 0.7); n_va = int(len(graphs) * 0.15)
 tr_idx, va_idx, te_idx = idx[:n_tr], idx[n_tr:n_tr + n_va], idx[n_tr + n_va:]
-print(f'划分: train {n_tr} / val {n_va} / test {len(te_idx)}', flush=True)
+print(f'split: train {n_tr} / val {n_va} / test {len(te_idx)}', flush=True)
 
 y_mean = y_all.mean(0); y_std = y_all.std(0).clamp(min=1e-8)
 y_norm = (y_all - y_mean) / y_std
 
-# ---------- 数据管道: numpy 向量化 collate + 多进程 ----------
+# ---------- Data pipeline: numpy-vectorised collate + multiprocessing ----------
 class GraphDataset(Dataset):
     def __init__(self, graphs):
         self.graphs = graphs
@@ -78,7 +78,7 @@ def make_loader(indices, shuffle):
         kw.update(persistent_workers=True, prefetch_factor=4)
     return DataLoader(Subset(GraphDataset(graphs), indices), **kw)
 
-# ---------- 模型 (论文 AblationXYZ 协议, 输出 7 维) ----------
+# ---------- Model (manuscript AblationXYZ protocol, 7-d output) ----------
 def segment_softmax(scores, dst, N):
     scores_f32 = scores.float()
     max_v = torch.full((N, scores_f32.size(1)), float('-inf'), device=scores_f32.device, dtype=torch.float32)

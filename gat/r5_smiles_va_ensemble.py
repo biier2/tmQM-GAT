@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-"""R5: SMILES 集成在论文主域 (vA, 90,317) 重训 — 意见6 方案B
-与 R3 (r3_smiles_ensemble.py) 协议逐字一致, 唯一区别:
-  - 域: vA_domain_smiles.pt (本地论文管线逐字同逻辑构建的 vA 域 90,317 图, 上传后直接加载)。
-        2026-09-02 实测: 服务器 r2b_graphs.pt 前 90,317 ≠ 论文主域行序 (rdkit 版本 ±19 错位),
-        故弃用截断路线, 改为本地构建数据包 (已自检 y_true 与 3D 集成逐位一致)。
-  - 划分: 直接用 paper_domain_vA/ensemble_split.npz 的 te_idx / cv_idx / fold_0-2_train/val
-          (与 3D 集成 ensemble_cv_weighted 完全相同的划分 → 同池同划分配对比较最严格)
-  - 动机: R3 在 95,152 域自划测试集 (RandomState(42), 14,272), 实测 62% 的 vA 测试集
-          (13,547) 落在 R3 训练池 → R3 模型在 13,547 上推断有训练泄漏, 不能作主结果。
-协议: 3-fold × 3-seed = 9 模型, AdamW lr=1e-3 wd=1e-4, CosineAnnealingWarmRestarts(T_0=50,T_mult=2),
-      AMP, bs=256, epochs=200, early_stop=40, sqrt 金属权重, per-model local 标准化
-输出: r5_smiles_va_ckpt.pt (断点) + r5_smiles_va_ensemble.npz + r5_smiles_va_results.json
-环境变量: R5_NW (DataLoader 进程数, 默认 8); R5_SMOKE=1 冒烟测试 (2 epochs, 不保存)
+"""R5: retrain the SMILES ensemble on the manuscript main domain (vA, 90,317) — comment 6 plan B
+Protocol verbatim identical to R3 (r3_smiles_ensemble.py), the only differences:
+  - Domain: vA_domain_smiles.pt (the vA domain's 90,317 graphs built locally with logic verbatim identical to the manuscript pipeline, loaded directly after upload).
+        Measured 2026-09-02: the first 90,317 rows of the server-side r2b_graphs.pt ≠ the manuscript main-domain row order (rdkit version ±19 shift),
+        so the truncation route was abandoned in favour of a locally built data package (y_true already self-checked bit-identical to the 3D ensemble).
+  - Split: use the te_idx / cv_idx / fold_0-2_train/val from paper_domain_vA/ensemble_split.npz directly
+          (exactly the same split as the 3D ensemble ensemble_cv_weighted → same pool and split, the most rigorous paired comparison)
+  - Motivation: R3 drew its own test set on the 95,152 domain (RandomState(42), 14,272); measured, 62% of the vA test set
+          (13,547) falls in the R3 training pool → R3 inference on the 13,547 has training leakage and cannot serve as the main result.
+Protocol: 3-fold × 3-seed = 9 models, AdamW lr=1e-3 wd=1e-4, CosineAnnealingWarmRestarts(T_0=50,T_mult=2),
+      AMP, bs=256, epochs=200, early_stop=40, sqrt metal weights, per-model local standardisation
+Output: r5_smiles_va_ckpt.pt (checkpoint) + r5_smiles_va_ensemble.npz + r5_smiles_va_results.json
+Environment variables: R5_NW (number of DataLoader processes, default 8); R5_SMOKE=1 smoke test (2 epochs, not saved)
 """
 import json, os, sys, time
 from collections import Counter
@@ -30,34 +30,34 @@ print(f'Device: {device}', flush=True)
 PROPS = ['gap', 'homo', 'lumo', 'dipole', 'metal_charge', 'E_elec', 'E_disp', 'polarizability']
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12; DROPOUT = 0.10
 SEEDS = [42, 123, 456]; FOLDS = 3
-BS = 256                                       # 协议固定 bs=256
-NW = int(os.environ.get('R5_NW', '8'))         # DataLoader 进程数 (16 核给 8)
+BS = 256                                       # protocol fixes bs=256
+NW = int(os.environ.get('R5_NW', '8'))         # number of DataLoader processes (8 out of 16 cores)
 SMOKE = os.environ.get('R5_SMOKE', '0') == '1'
-N_VALID = 90317                                # vA 域大小 (README: 前 90,317 保留分子)
+N_VALID = 90317                                # vA domain size (README: the first 90,317 kept molecules)
 CKPT = 'r5_smiles_va_ckpt.pt'
 
-# ---------- 数据: vA_domain_smiles.pt (本地论文管线构建的 vA 域 90,317 图) ----------
+# ---------- Data: vA_domain_smiles.pt (the vA domain's 90,317 graphs built by the local manuscript pipeline) ----------
 data = torch.load('vA_domain_smiles.pt', weights_only=False)
 graphs = data['graphs']; y_all = data['y_all']; atoms_filt = data['atoms_filt']
-print(f'加载 vA_domain_smiles.pt: {len(graphs):,} 图', flush=True)
-assert len(graphs) == N_VALID, f'图数 {len(graphs):,} != 90,317, vA_domain_smiles.pt 版本不对'
+print(f'Loaded vA_domain_smiles.pt: {len(graphs):,} graphs', flush=True)
+assert len(graphs) == N_VALID, f'graph count {len(graphs):,} != 90,317, wrong version of vA_domain_smiles.pt'
 
-# ---------- 划分: 直接用论文主域 ensemble_split.npz (与 3D 集成相同) ----------
+# ---------- Split: use the manuscript main-domain ensemble_split.npz directly (same as the 3D ensemble) ----------
 split_paths = ['ensemble_split.npz', 'data_tmQM/paper_domain_vA/ensemble_split.npz']
 sp = None
 for p in split_paths:
     if os.path.exists(p):
-        sp = np.load(p); print(f'划分文件: {p}', flush=True); break
-assert sp is not None, '未找到 ensemble_split.npz (试过: ' + ', '.join(split_paths) + ')'
+        sp = np.load(p); print(f'split file: {p}', flush=True); break
+assert sp is not None, 'ensemble_split.npz not found (tried: ' + ', '.join(split_paths) + ')'
 te_idx = sp['te_idx'].copy()
 cv_idx = sp['cv_idx'].copy()
 fold_splits = [ (sp[f'fold_{f}_train'], sp[f'fold_{f}_val']) for f in range(3) ]
-assert len(te_idx) == 13547, f'te_idx 长度 {len(te_idx)} != 13,547'
-assert te_idx.max() < N_VALID and cv_idx.max() < N_VALID, '划分索引超出 90,317 域'
-print(f'固定测试 {len(te_idx):,} / CV 池 {len(cv_idx):,} (论文主域 vA)', flush=True)
+assert len(te_idx) == 13547, f'te_idx length {len(te_idx)} != 13,547'
+assert te_idx.max() < N_VALID and cv_idx.max() < N_VALID, 'split indices exceed the 90,317 domain'
+print(f'Fixed test {len(te_idx):,} / CV pool {len(cv_idx):,} (manuscript main domain vA)', flush=True)
 
-# ---------- 对齐自检: 与 3D 集成 (ensemble_predictions.npz) 逐位核对 te_idx + y_true ----------
-# 目的: 防止服务器 rdkit 版本差异导致保留序列错位 (README: 差 19 个分子可能错位几个)
+# ---------- Alignment self-check: bit-level te_idx + y_true verification against the 3D ensemble (ensemble_predictions.npz) ----------
+# Purpose: guard against kept-sequence shifts caused by server rdkit version differences (README: 19 fewer molecules can shift things by several rows)
 ep_path = 'ensemble_predictions.npz'
 if os.path.exists(ep_path):
     ep = np.load(ep_path)
@@ -65,14 +65,14 @@ if os.path.exists(ep_path):
     yt_ref = ep['y_true']
     yt_here = y_all[te_idx].numpy()
     same_yt = np.allclose(yt_here, yt_ref, atol=1e-4)
-    print(f'对齐自检 vs ensemble_predictions.npz: te_idx 相同={same_te}, y_true 相同={same_yt}', flush=True)
+    print(f'alignment self-check vs ensemble_predictions.npz: te_idx identical={same_te}, y_true identical={same_yt}', flush=True)
     if not (same_te and same_yt):
-        print('!! 对齐失败: vA_domain_smiles.pt 与 3D 集成的行序不一致 (数据包传错/损坏?)。中止。', flush=True)
+        print('!! alignment failed: the row order of vA_domain_smiles.pt differs from that of the 3D ensemble (package transferred wrongly/corrupted?). Aborting.', flush=True)
         sys.exit(1)
 else:
-    print('警告: 未找到 ensemble_predictions.npz, 跳过对齐自检', flush=True)
+    print('warning: ensemble_predictions.npz not found, skipping the alignment self-check', flush=True)
 
-# ---------- 金属权重 sqrt(N/n) — 在 vA 域上计算, 与 3D 集成一致 ----------
+# ---------- Metal weights sqrt(N/n) — computed on the vA domain, consistent with the 3D ensemble ----------
 mc = Counter()
 for atoms in atoms_filt:
     for z in set(atoms):
@@ -85,7 +85,7 @@ for i, atoms in enumerate(atoms_filt):
     sample_weights[i] = w
 sample_weights = sample_weights / sample_weights.mean()
 
-# ---------- 模型 (与 R3 完全相同: XYZ_GNN, node 8d / edge 6d 截断) ----------
+# ---------- Model (exactly the same as R3: XYZ_GNN, node 8d / edge 6d truncation) ----------
 def segment_softmax(scores, dst, N):
     scores_f32 = scores.float()
     max_v = torch.full((N, scores_f32.size(1)), float('-inf'), device=scores_f32.device, dtype=torch.float32)
@@ -159,7 +159,7 @@ class XYZ_GNN(nn.Module):
             mf = torch.zeros(n_graphs, h.size(1), device=h.device, dtype=h.dtype)
         return self.readout(torch.cat([mean_h, max_h, mf], dim=1))
 
-# ---------- 数据管道 (与 R3 相同: numpy 向量化 collate + 多进程) ----------
+# ---------- Data pipeline (same as R3: numpy-vectorised collate + multiprocessing) ----------
 class GraphDataset(Dataset):
     def __init__(self, graphs):
         self.graphs = graphs
@@ -191,7 +191,7 @@ def to_gpu(batched, batch_idx, gidx):
             batch_idx.to(device, non_blocking=True),
             gidx.to(device, non_blocking=True))
 
-# ---------- train_one_model (协议同 R3/3D 集成) ----------
+# ---------- train_one_model (protocol same as R3/3D ensemble) ----------
 def train_one_model(train_idx, val_idx, seed, fold_name):
     torch.manual_seed(seed); np.random.seed(seed)
     model = XYZ_GNN().to(device)
@@ -258,7 +258,7 @@ def train_one_model(train_idx, val_idx, seed, fold_name):
         val_r2s = [r2_score(yv_orig[:, i].numpy(), vp_orig[:, i].numpy()) for i in range(8)]
     return model.state_dict(), y_mean_local, y_std_local, val_r2s
 
-# ---------- 主循环 (断点续训) ----------
+# ---------- Main loop (resume training) ----------
 all_models = []
 results_log = []
 completed = set()
@@ -267,7 +267,7 @@ if os.path.exists(CKPT):
     all_models = ckpt['models']; results_log = ckpt.get('log', [])
     for m in all_models:
         completed.add((m['fold'], m['seed']))
-    print(f'恢复 {len(all_models)} 模型, 已完成 {sorted(completed)}', flush=True)
+    print(f'restored {len(all_models)} models, completed {sorted(completed)}', flush=True)
 
 t_start = time.time()
 for fold_idx in range(FOLDS):
@@ -288,19 +288,19 @@ for fold_idx in range(FOLDS):
                             'val_mean_r2': float(np.mean(val_r2s)), 'val_r2s': val_r2s,
                             'time_min': elapsed / 60})
         completed.add((fold_idx, seed))
-        print(f'  完成 {elapsed/60:.1f}min, Val Mean R² = {np.mean(val_r2s):.4f}', flush=True)
+        print(f'  done {elapsed/60:.1f}min, Val Mean R² = {np.mean(val_r2s):.4f}', flush=True)
     if not SMOKE:
         torch.save({'models': all_models, 'log': results_log}, CKPT)
         print(f'Checkpoint saved ({len(all_models)}/9)', flush=True)
 
 if SMOKE:
-    print('冒烟测试完成, 不保存 (R5_SMOKE=1)', flush=True)
+    print('smoke test complete, not saved (R5_SMOKE=1)', flush=True)
     sys.exit(0)
 
-print(f'\n训练完成 {len(all_models)}/9 模型', flush=True)
+print(f'\ntraining complete {len(all_models)}/9 models', flush=True)
 
-# ---------- 测试集评估 (9 成员 + 集成) ----------
-print('\n测试集评估 (13,547)...', flush=True)
+# ---------- Test-set evaluation (9 members + ensemble) ----------
+print('\ntest-set evaluation (13,547)...', flush=True)
 te_loader = make_loader(te_idx, shuffle=False)
 per_model = np.zeros((len(all_models), len(te_idx), 8), dtype=np.float32)
 for mi, m in enumerate(all_models):
@@ -315,7 +315,7 @@ for mi, m in enumerate(all_models):
                 preds.append(model(batched, batch_idx).float().cpu())
     p = torch.cat(preds, dim=0) * y_std_local + y_mean_local
     per_model[mi] = p.numpy()
-    print(f'  成员 {mi+1}/9 完成 (fold {m["fold"]}, seed {m["seed"]})', flush=True)
+    print(f'  member {mi+1}/9 done (fold {m["fold"]}, seed {m["seed"]})', flush=True)
 
 y_true = y_all[te_idx].numpy()
 ens_mean = per_model.mean(axis=0)
@@ -326,10 +326,10 @@ r2_ens = {PROPS[i]: float(r2_score(y_true[:, i], ens_mean[:, i])) for i in range
 mae_ens = {PROPS[i]: float(mean_absolute_error(y_true[:, i], ens_mean[:, i])) for i in range(8)}
 mean_r2_ens = float(np.mean(list(r2_ens.values())))
 
-print('\nSMILES 集成 vA 域 (9 成员均值, 13,547 测试) 逐性质:')
+print('\nSMILES ensemble on the vA domain (mean of 9 members, 13,547 test) per property:')
 for i, p in enumerate(PROPS):
     print(f'  {p:14s} R² = {r2_ens[p]:.4f}  MAE = {mae_ens[p]:.4f}  '
-          f'(单模型 {np.mean(r2_single[p]):.4f} ± {np.std(r2_single[p]):.4f})')
+          f'(single model {np.mean(r2_single[p]):.4f} ± {np.std(r2_single[p]):.4f})')
 print(f'  Mean R² = {mean_r2_ens:.4f}')
 
 np.savez_compressed('r5_smiles_va_ensemble.npz',

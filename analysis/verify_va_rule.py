@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""验证论文主域 90,317 的 CSV 侧保留规则 (2026-09-02 重大发现)
-背景: 诊断证实论文主域 = CSV 行序的保留子序列 (不是 xyz TM 块序, README 前缀截断结论被推翻)。
-本脚本对候选保留掩码逐一验证: y_domain[te_idx] 与 ensemble_predictions.npz y_true 逐位一致。
-候选规则 (dropna = 8 目标全有限):
-  A: dropna & SMILES可解析 & 含TM(z>=21)
-  B: A + CSD码在xyz文件中
-  C: dropna & SMILES可解析 & CSD码在xyz
-  D: dropna & SMILES可解析
+"""Verify the CSV-side retention rule for the 90,317 paper main domain (major finding of 2026-09-02)
+Background: diagnostics confirm that the paper main domain = a retained subsequence of the CSV row order (not the xyz TM block order; the README prefix-truncation conclusion is overturned).
+This script verifies each candidate retention mask: y_domain[te_idx] matches y_true in ensemble_predictions.npz bit for bit.
+Candidate rules (dropna = all 8 targets finite):
+  A: dropna & SMILES parseable & contains TM (z>=21)
+  B: A + CSD code present in the xyz files
+  C: dropna & SMILES parseable & CSD code present in xyz
+  D: dropna & SMILES parseable
 """
 import sys, gzip
 sys.stdout.reconfigure(encoding='utf-8')
@@ -24,10 +24,10 @@ y = df[targets].values.astype(np.float32)
 smi_list = df['SMILES'].tolist()
 codes = df['CSD_code'].tolist()
 n = len(df)
-print(f'csv: {n} 行', flush=True)
+print(f'csv: {n} rows', flush=True)
 
 dropna = np.isfinite(y).all(axis=1)
-print(f'dropna 保留: {dropna.sum():,}', flush=True)
+print(f'dropna retained: {dropna.sum():,}', flush=True)
 
 parse_ok = np.zeros(n, bool); tm_ok = np.zeros(n, bool)
 for i, s in enumerate(smi_list):
@@ -38,9 +38,9 @@ for i, s in enumerate(smi_list):
         continue
     parse_ok[i] = True
     tm_ok[i] = any(a.GetAtomicNum() >= 21 for a in mol.GetAtoms())
-print(f'SMILES 可解析: {parse_ok.sum():,}   含TM: {tm_ok.sum():,}', flush=True)
+print(f'SMILES parseable: {parse_ok.sum():,}   contains TM: {tm_ok.sum():,}', flush=True)
 
-# ===== xyz 文件中的 CSD 码集合 (逐行扫块头, 跳过原子行) =====
+# ===== Set of CSD codes in the xyz files (scan block headers line by line, skipping atom lines) =====
 codes_xyz = set()
 for part in [1, 2, 3]:
     with gzip.open(f'data_tmQM/local_vB/tmQM_X{part}.xyz.gz', 'rt') as f:
@@ -59,10 +59,10 @@ for part in [1, 2, 3]:
                 codes_xyz.add(c)
             for _ in range(n_at):
                 next(it, None)
-print(f'xyz 文件 CSD 码: {len(codes_xyz):,}', flush=True)
+print(f'xyz-file CSD codes: {len(codes_xyz):,}', flush=True)
 
 code_in_xyz = np.array([(str(c) in codes_xyz) if isinstance(c, str) else False for c in codes])
-print(f'CSD 码在 xyz: {code_in_xyz.sum():,}', flush=True)
+print(f'CSD codes present in xyz: {code_in_xyz.sum():,}', flush=True)
 
 cands = {
     'A: dropna&parse&TM':       dropna & parse_ok & tm_ok,
@@ -83,9 +83,9 @@ for name, mask in cands.items():
     nkept = len(kept_rows)
     if nkept == 90317:
         same = bool(np.allclose(y_dom[te_idx], yt_ref, atol=1e-4))
-        print(f'{name}: 保留 {nkept:,} → y_true 逐位一致 = {same}', flush=True)
+        print(f'{name}: retained {nkept:,} → y_true bit-identical = {same}', flush=True)
     elif nkept > 90317:
         same = bool(np.allclose(y_dom[:90317][te_idx], yt_ref, atol=1e-4))
-        print(f'{name}: 保留 {nkept:,} (>90,317) → 截断前 90,317 后 y_true 逐位一致 = {same}', flush=True)
+        print(f'{name}: retained {nkept:,} (>90,317) → y_true bit-identical after truncating to the first 90,317 = {same}', flush=True)
     else:
-        print(f'{name}: 保留 {nkept:,} < 90,317 ✗', flush=True)
+        print(f'{name}: retained {nkept:,} < 90,317 ✗', flush=True)

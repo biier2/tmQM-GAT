@@ -1,29 +1,29 @@
 # -*- coding: utf-8 -*-
-"""由 m7_carbon_donors.py 生成 SMILES 版:
-- 节点 8d / 边 6d (去 RBF/BO), checkpoint tmqm_gat_best.pt
-- 追加 B3: 注意力 vs 扰动 top-5 重叠 + paired z 检验 (5/N 基线)
-- 输出 m7_carbon_donors_smiles.json (含 overlap 数据)"""
+"""Generate the SMILES version from m7_carbon_donors.py:
+- 8d nodes / 6d edges (RBF/BO removed), checkpoint tmqm_gat_best.pt
+- additionally append B3: attention vs perturbation top-5 overlap + paired z test (5/N baseline)
+- output m7_carbon_donors_smiles.json (including the overlap data)"""
 import re
 
 src = open('m7_carbon_donors.py', encoding='utf-8').read()
 
 # ---- 1. docstring ----
 src = src.replace(
-    '"""M7: 碳供体 (NHC 卡宾 C / CO 羰基 C / 其他 M-C) 扩展 donor 集合重算\n协议 (复刻 xai_rigorous.ipynb):\n  - XAI 子集: RandomState(42) 全量排列建图至 20,000 (11d 节点/23d 边, RBF 占位 2.0A, MBO 0)\n  - 模型: xyz_best.pt = XYZ_GNN_XAI (11->384, 5xGATConv 12heads 32d, edge 23d, readout 3x384->8)',
-    '"""M7-SMILES: 碳供体扩展 donor 集合重算 (SMILES 部署模型版)\n协议 (复刻 xai_smiles.ipynb):\n  - XAI 子集: RandomState(42) 全量排列建图至 20,000 (8d 节点/6d 边)\n  - 模型: tmqm_gat_best.pt = 部署 SMILES GAT (8->384, 5xGATConv 12heads 32d, edge 6d, readout 3x384->8)')
+    '"""M7: recompute with an extended donor set covering carbon donors (NHC carbene C / CO carbonyl C / other M-C)\nProtocol (reproducing xai_rigorous.ipynb):\n  - XAI subset: RandomState(42), graphs built over the full permutation up to 20,000 (11d node / 23d edge, RBF placeholder 2.0A, MBO 0)\n  - Model: xyz_best.pt = XYZ_GNN_XAI (11->384, 5xGATConv 12heads 32d, edge 23d, readout 3x384->8)',
+    '"""M7-SMILES: recompute with an extended donor set covering carbon donors (SMILES deployment model version)\nProtocol (reproducing xai_smiles.ipynb):\n  - XAI subset: RandomState(42), graphs built over the full permutation up to 20,000 (8d node / 6d edge)\n  - Model: tmqm_gat_best.pt = deployed SMILES GAT (8->384, 5xGATConv 12heads 32d, edge 6d, readout 3x384->8)')
 
-# ---- 2. 节点特征 11d -> 8d ----
+# ---- 2. node features 11d -> 8d ----
 src = src.replace("xf.append([z, a.GetDegree(), a.GetFormalCharge(), p, g, int(a.GetIsAromatic()), a.GetTotalNumHs(), int(z >= 21), 0, 0.0, 0.0])",
                   "xf.append([z, a.GetDegree(), a.GetFormalCharge(), p, g, int(a.GetIsAromatic()), a.GetTotalNumHs(), int(z >= 21)])  # SMILES 8d")
 
-# ---- 3. 边特征 23d -> 6d (删 RBF 循环与 MBO 占位) ----
+# ---- 3. edge features 23d -> 6d (remove the RBF loop and the MBO placeholder) ----
 src = src.replace("""        for mu in rbf_c: bf.append(np.exp(-(2.0 - mu) ** 2 / 0.2))
         bf.append(0.0); battr.extend([bf, bf])""",
-                  """        battr.extend([bf, bf])  # SMILES 6d (无 RBF/MBO)""")
+                  """        battr.extend([bf, bf])  # SMILES 6d (no RBF/MBO)""")
 src = src.replace("ea = torch.tensor(battr, dtype=torch.float32) if battr else torch.zeros(0, 23)",
                   "ea = torch.tensor(battr, dtype=torch.float32) if battr else torch.zeros(0, 6)")
 
-# ---- 4. 模型维度 ----
+# ---- 4. model dimensions ----
 src = src.replace("self.embed = nn.Linear(11, HIDDEN)", "self.embed = nn.Linear(8, HIDDEN)  # SMILES 8d")
 src = src.replace("GATConvXAI(HIDDEN, HIDDEN // GAT_HEADS, 23, heads=GAT_HEADS) for _ in range(N_LAYERS)])",
                   "GATConvXAI(HIDDEN, HIDDEN // GAT_HEADS, 6, heads=GAT_HEADS) for _ in range(N_LAYERS)])  # SMILES 6d")
@@ -33,14 +33,14 @@ src = src.replace("state = torch.load('xyz_best.pt', map_location='cpu')", "stat
 src = src.replace("print(f'xyz_best.pt loaded; missing={missing[:3]} unexpected={unexpected[:3]}')",
                   "print(f'tmqm_gat_best.pt loaded; missing={missing[:3]} unexpected={unexpected[:3]}')")
 
-# ---- 6. 输出 json 名 ----
+# ---- 6. output json name ----
 src = src.replace("with open('m7_carbon_donors.json', 'w', encoding='utf-8') as f:",
                   "with open('m7_carbon_donors_smiles.json', 'w', encoding='utf-8') as f:")
 src = src.replace("print('\\nSaved -> m7_carbon_donors.json')", "print('\\nSaved -> m7_carbon_donors_smiles.json')")
 
-# ---- 7. 追加 B3: 重叠 + z 检验 (插在 json 保存之前) ----
+# ---- 7. append B3: overlap + z test (inserted before the json save) ----
 b3 = '''
-# ===== 5. 注意力 vs 扰动 top-5 一致性 + paired z 检验 =====
+# ===== 5. attention vs perturbation top-5 consistency + paired z test =====
 print('\\n=== B3: attention vs perturbation top-5 overlap + z test ===')
 overlap_rates, chance_rates = [], []
 for ii in tqdm(range(len(perturb_idx)), desc='consistency'):
@@ -88,7 +88,7 @@ src = src.replace(anchor, b3 + "\n" + anchor)
 open('m7_carbon_donors_smiles.py', 'w', encoding='utf-8').write(src)
 print('built m7_carbon_donors_smiles.py')
 
-# 语法验证
+# syntax check
 import ast
 ast.parse(src)
-print('语法 OK')
+print('syntax OK')

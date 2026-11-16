@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""定位我的 90,335 kept 里比 notebook 90,317 多出的 18 行
-方法: ep te_idx t → 内容在 y_my[t..t+20] 中搜索首个精确匹配 → t' = t + c(t)
-c(t) 为阶梯函数, 阶梯位置 = 多出的行 (notebook 中不存在)
+"""Locate the 18 extra rows in my 90,335 kept entries relative to the notebook's 90,317
+Method: ep te_idx t → search y_my[t..t+20] for the first exact content match → t' = t + c(t)
+c(t) is a step function; the step positions are the extra rows (absent from the notebook)
 """
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
@@ -80,42 +80,42 @@ print(f'y_my: {y_my.shape}', flush=True)
 ep = np.load('ensemble_predictions.npz')
 te = ep['te_idx']; yt_ref = ep['y_true'].astype(np.float32)
 
-# t → t' 内容对齐 (在 t..t+25 窗口内找首个精确匹配)
+# t → t' content alignment (find the first exact match within the t..t+25 window)
 c = np.full(len(te), -1, dtype=np.int64)
 b = y_my.tobytes()
-# 用浮点 exact 比较: 直接逐样本窗口扫描
-y_rows = {y_my[i].tobytes(): i for i in range(len(y_my))}  # 首匹配行
+# float exact comparison: scan the per-sample window directly
+y_rows = {y_my[i].tobytes(): i for i in range(len(y_my))}  # first-match row
 shift = np.full(len(te), -1, dtype=np.int64)
 for i in range(len(te)):
     tb = yt_ref[i].tobytes()
     r0 = y_rows.get(tb, -1)
-    # 真正的行应在 te[i] 附近 (te[i] .. te[i]+20)
+    # the true row should be near te[i] (te[i] .. te[i]+20)
     if r0 >= te[i]:
         shift[i] = r0 - te[i]
     else:
-        # 内容重复导致首匹配偏早, 窗口内线性扫
+        # duplicated content makes the first match too early; scan linearly inside the window
         for d in range(0, 26):
             j = te[i] + d
             if j < len(y_my) and y_my[j].tobytes() == tb:
                 shift[i] = d
                 break
-print(f'shift 未定: {(shift < 0).sum()}', flush=True)
+print(f'shift unresolved: {(shift < 0).sum()}', flush=True)
 from collections import Counter
-print('shift 分布:', sorted(Counter(shift).items()), flush=True)
+print('shift distribution:', sorted(Counter(shift).items()), flush=True)
 
-# 阶梯: shift 递增 0→18
+# steps: shift increases 0→18
 ss = np.unique(shift)
-print('shift 唯一值:', ss.tolist(), flush=True)
-# 对每个 shift 值, 取该值出现的最小 te 位置区间
+print('shift unique values:', ss.tolist(), flush=True)
+# for each shift value, take the te position interval in which it occurs
 for s in sorted(set(shift)):
     m = shift == s
     if m.any():
         print(f'  shift={s}: te ∈ [{te[m].min()}, {te[m].max()}], n={m.sum()}', flush=True)
-# 多出行的位置: shift 从 s 跳到 s+1 的 te 区间 → 该行在 my-位置 ∈ (前区间max, 后区间min]
+# positions of extra rows: the te interval where shift jumps from s to s+1 → that row's my-position ∈ (previous interval max, next interval min]
 jumps = []
 sv = sorted(set(shift))
 for a2, b2 in zip(sv[:-1], sv[1:]):
     ma = (shift == a2); mb = (shift == b2)
     lo = te[ma].max(); hi = te[mb].min()
     jumps.append((a2, b2, lo, hi))
-    print(f'  跳变 {a2}→{b2}: 多出 1 行, my-位置 ∈ ({lo}, {hi}]', flush=True)
+    print(f'  jump {a2}→{b2}: 1 extra row, my-position ∈ ({lo}, {hi}]', flush=True)

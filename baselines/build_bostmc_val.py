@@ -10,21 +10,21 @@ def add_code(src, cid):
     cells.append({"cell_type": "code", "metadata": {}, "execution_count": None, "outputs": [],
                   "source": [l + '\n' for l in src.split('\n')], "id": cid})
 
-add_md("""# BOSTMC 外部验证 — 真正独立数据集
+add_md("""# BOSTMC external validation — a truly independent dataset
 
-## 为什么 BOSTMC 是完美的外部验证
-| | tmQM (训练) | BOSTMC (验证) |
+## Why BOSTMC is perfect for external validation
+| | tmQM (training) | BOSTMC (validation) |
 |------|------|------|
-| CSD 码重叠 | — | **0%** (完全独立) |
-| DFT 泛函 | TPSSh-D3BJ | **PBE0/def2-TZVP** |
-| 来源 | CSD 筛选 | CSD 另选 |
-| 配合物数 | 108k | 3,277 (hs) |
+| CSD code overlap | — | **0%** (fully independent) |
+| DFT functional | TPSSh-D3BJ | **PBE0/def2-TZVP** |
+| Source | CSD screening | separate CSD selection |
+| Number of complexes | 108k | 3,277 (hs) |
 
-## 策略
-BOSTMC 无 SMILES，用 XYZ 坐标 + 距离边建图 → XYZ GNN 推理
+## Strategy
+BOSTMC has no SMILES; build graphs from XYZ coordinates + distance edges → XYZ GNN inference
 
 ```
-XYZ坐标 → 原子配对(covalent radii) → 距离RBF边 → XYZ GNN → 预测值 vs PBE0真值
+XYZ coordinates → atom pairing (covalent radii) → distance RBF edges → XYZ GNN → predictions vs PBE0 truth
 ```
 """, "bostmc_intro")
 
@@ -38,28 +38,28 @@ from sklearn.metrics import r2_score, mean_absolute_error
 from scipy.stats import pearsonr
 from tqdm import tqdm
 
-# ===== 加载 BOSTMC 数据 =====
+# ===== Load BOSTMC data =====
 df_bo = pd.read_csv('BOSTMC/manyDFA/properties/manyDFA-hs.csv')
 print(f'BOSTMC high-spin: {len(df_bo):,} complexes')
 
-# PBE0 作为参考泛函 (最接近我们的TPSSh训练数据)
+# PBE0 as the reference functional (closest to our TPSSh training data)
 pbe0_cols = {
     'gap': 'pbe0 alpha HOMO-LUMO gap (a.u.)',
     'homo': 'pbe0 alpha HOMO (a.u.)',
     'lumo': 'pbe0 alpha LUMO (a.u.)',
-    'dipole': 'pbe0 dipole magnitude at COM (debye)',  # 标量, 不是向量
+    'dipole': 'pbe0 dipole magnitude at COM (debye)',  # scalar, not a vector
     'E_elec': 'pbe0 electronic energy (a.u.)',
     'metal_charge': 'pbe0 metal lowdin charge',
 }
 targets_ext = ['gap', 'homo', 'lumo', 'dipole', 'E_elec', 'metal_charge']
 
-# 过滤: 保留 PBE0 收敛且有有效数值的行
+# Filter: keep rows where PBE0 converged and has valid values
 df_clean = df_bo[df_bo['pbe0 success'].notna()].copy()
 for prop in targets_ext:
     col = pbe0_cols[prop]
-    # 强制转为数值, 无法转换的变为 NaN
+    # Coerce to numeric; unconvertible entries become NaN
     df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce')
-# 只保留所有6个目标都有值的行
+# Keep only rows with values for all 6 targets
 df_clean = df_clean.dropna(subset=[pbe0_cols[p] for p in targets_ext])
 df_clean = df_clean.reset_index(drop=True)
 print(f'Clean PBE0 data: {len(df_clean):,} complexes (from {len(df_bo):,} total)')
@@ -68,13 +68,13 @@ print(f'Targets: {targets_ext}')
 print(f'Sample refcodes: {df_clean[\"refcode\"].head(5).tolist()}')
 """, "bostmc_load")
 
-add_code("""# ===== 从 XYZ 文件建图 =====
-# BOSTMC XYZ 文件在 tar 包中, 服务器上先解压
-# tar -xzf BOSTMC.tar.gz -C BOSTMC/ --wildcards '*.xyz'  # 服务器上执行
+add_code("""# ===== Build graphs from XYZ files =====
+# The BOSTMC XYZ files are inside a tar archive; extract them first on the server
+# tar -xzf BOSTMC.tar.gz -C BOSTMC/ --wildcards '*.xyz'  # run on the server
 
 import tarfile, io
 
-# 原子半径 (covalent, Angstrom)
+# Atomic radii (covalent, Angstrom)
 COVALENT_RADII = {
     1:0.31, 5:0.84, 6:0.76, 7:0.71, 8:0.66, 9:0.57, 14:1.11, 15:1.07, 16:1.05,
     17:1.02, 20:1.76, 21:1.70, 22:1.60, 23:1.53, 24:1.39, 25:1.39, 26:1.32,
@@ -87,7 +87,7 @@ ATOM_TO_Z = {'H':1,'B':5,'C':6,'N':7,'O':8,'F':9,'Si':14,'P':15,'S':16,'Cl':17,
     'Cu':29,'Zn':30,'Br':35,'Mo':42,'Ru':44,'Rh':45,'Pd':46,'Ag':47,'Cd':48,
     'I':53,'Hf':72,'Ta':73,'W':74,'Re':75,'Os':76,'Ir':77,'Pt':78,'Au':79,'Hg':80}
 
-# 元素周期表信息
+# Periodic-table information
 PERIOD_GROUP = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),
     15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),
     25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),
@@ -98,7 +98,7 @@ rbf_c = np.linspace(1.0, 5.0, 16)
 rbf_sigma = 0.2
 
 def xyz_to_graph(xyz_content, max_neighbors=12):
-    '''从 XYZ 内容构建距离图'''
+    '''Build a distance graph from XYZ content'''
     lines = xyz_content.strip().split(chr(10))
     n_atoms = int(lines[0].strip())
     atoms = []
@@ -111,11 +111,11 @@ def xyz_to_graph(xyz_content, max_neighbors=12):
         coords.append([float(x) for x in parts[1:4]])
     coords = np.array(coords, dtype=np.float32)
 
-    # 距离矩阵
+    # Distance matrix
     diff = coords[np.newaxis,:,:] - coords[:,np.newaxis,:]
     dist = np.sqrt((diff**2).sum(axis=2))
 
-    # 构建边: covalent radii cutoff
+    # Build edges: covalent radii cutoff
     src, dst, edge_feats = [], [], []
     for i in range(n_atoms):
         for j in range(i+1, n_atoms):
@@ -131,7 +131,7 @@ def xyz_to_graph(xyz_content, max_neighbors=12):
                 feat.append(0.0)  # BO unknown
                 edge_feats.extend([feat, feat])
 
-    # 节点特征 (11-dim, 匹配 XYZ GNN)
+    # Node features (11-dim, matching XYZ GNN)
     xf = []
     for a in atoms:
         z = a['z']; pg = PERIOD_GROUP.get(z, (0,0))
@@ -169,7 +169,7 @@ def smiles_to_graph(smiles):
 print('Graph builder ready')
 """, "bostmc_graph")
 
-add_code("""# ===== XYZ GNN 模型加载 =====
+add_code("""# ===== Load the XYZ GNN model =====
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12
 
 def segment_softmax(scores, dst, N):
@@ -265,11 +265,11 @@ add_code("""print('='*60)
 print('Step 1: Extract XYZ files from archive and build graphs')
 print('='*60)
 
-# 先解压 XYZ 文件
+# Extract the XYZ files first
 import tarfile, os, glob
 xyz_dir = 'BOSTMC/manyDFA/top100_divergence'
 
-# 方法1: 检查是否已解压
+# Method 1: check whether they are already extracted
 xyz_files = glob.glob(os.path.join(xyz_dir, '*.xyz')) if os.path.exists(xyz_dir) else []
 if not xyz_files:
     print(f'{xyz_dir} not found or empty. Extracting...')
@@ -289,7 +289,7 @@ if not xyz_files:
         xyz_files = [f for f in xyz_files if 'top100' in f or 'divergence' in f]
 
 print(f'Found {len(xyz_files)} XYZ files')
-N_SAMPLE = min(500, len(xyz_files))  # 限制500个配合物用于验证
+N_SAMPLE = min(500, len(xyz_files))  # cap at 500 complexes for validation
 np.random.seed(42)
 xyz_sample = np.random.choice(xyz_files, N_SAMPLE, replace=False)
 print(f'Sampling {N_SAMPLE} for validation')
@@ -297,7 +297,7 @@ print(f'Sampling {N_SAMPLE} for validation')
 graphs, y_true, matched_refs = [], [], []
 for xyz_path in tqdm(xyz_sample, desc='Building graphs'):
     refcode = os.path.basename(xyz_path).replace('.xyz', '').replace('_comp_0', '')
-    # 在 df_clean 中找匹配的 CSD 码
+    # Find the matching CSD code in df_clean
     match = df_clean[df_clean['refcode'].str.startswith(refcode)]
     if len(match) == 0: continue
     row = match.iloc[0]
@@ -339,9 +339,9 @@ else:
             preds_list.append(pn * y_std + y_mean)
 preds_all = np.concatenate(preds_list, axis=0)
 
-# 映射: 我们的8个输出 → BOSTMC的6个性别
+# Mapping: our 8 outputs → BOSTMC's 6 properties
 # indices: gap=0, homo=1, lumo=2, dipole=3, metal_charge=4, E_elec=5
-target_idx = [0, 1, 2, 3, 4, 5]  # 对应 BOSTMC 的 6 个性别 (无 E_disp, polarizability)
+target_idx = [0, 1, 2, 3, 4, 5]  # correspond to BOSTMC's 6 properties (no E_disp, polarizability)
 
 print(f'\\n{\"=\"*80}')
 print(f'BOSTMC EXTERNAL VALIDATION (N={len(graphs)}, PBE0/def2-TZVP, 0% CSD overlap with tmQM)')
@@ -390,13 +390,13 @@ plt.suptitle('BOSTMC External Validation: XYZ GNN on Independent Dataset (0% CSD
 plt.tight_layout(); plt.show()
 """, "bostmc_viz")
 
-add_md("""## BOSTMC 验证结论
+add_md("""## BOSTMC validation conclusions
 
-与 tmQMg 不同，BOSTMC 与 tmQM 有 **0% CSD 码重叠**——这是真正的外部验证。
+Unlike tmQMg, BOSTMC has **0% CSD code overlap** with tmQM — this is true external validation.
 
-- Pearson r 衡量预测排序能力
-- MAE 的绝对值可能偏高(不同泛函的系统偏差)
-- 关键看 r: 如果 gap r > 0.7, dipole r > 0.6 就算成功(已发表方法在跨泛函验证中 r 通常在 0.6-0.8)
+- Pearson r measures the ability to rank predictions
+- The absolute MAE may be somewhat high (systematic bias between different functionals)
+- The key is r: if gap r > 0.7 and dipole r > 0.6, that counts as success (published methods typically achieve r of 0.6-0.8 in cross-functional validation)
 """, "bostmc_discussion")
 
 nb = {"nbformat": 4, "nbformat_minor": 5,

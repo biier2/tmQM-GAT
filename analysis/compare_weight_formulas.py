@@ -1,4 +1,4 @@
-"""对比不同 metal weighting 公式的权重分布"""
+"""Compare the weight distributions of different metal weighting formulas"""
 import numpy as np
 from collections import Counter
 import pandas as pd, gzip
@@ -57,13 +57,13 @@ for atoms in sampled_atoms:
 n_metal_types = len(mc)  # K
 print(f"Metal types: {n_metal_types}, Total samples: {total_c}")
 
-# ===== 试 4 种公式 =====
+# ===== Try 4 formulas =====
 formulas = {}
 
-# 1. 当前公式 (退化)
+# 1. current formula (degenerate)
 w_map1 = {z: min(5.0, total_c/(c+1)) for z, c in mc.items()}
 
-# 2. sqrt (刚才试的)
+# 2. sqrt (just tried)
 w_map2 = {}
 for z, c in mc.items():
     w_map2[z] = np.clip(np.sqrt(total_c / c), 0.2, 5.0)
@@ -73,7 +73,7 @@ w_map3 = {}
 for z, c in mc.items():
     w_map3[z] = np.clip(1.0 / np.log(c + 1), 0.2, 5.0)
 
-# 4. N_total/(K*n_m), K=金属种类数
+# 4. N_total/(K*n_m), K = number of metal types
 w_map4 = {}
 for z, c in mc.items():
     w_map4[z] = np.clip(total_c / (n_metal_types * c), 0.2, 5.0)
@@ -104,5 +104,5 @@ for name, w_map in formulas:
     n_unique = len(np.unique(np.round(weights, 2)))
     print(f"{name:<35s} {weights.min():6.3f} {weights.max():6.3f} {weights.mean():6.3f} {weights.std():6.3f} {weights.max()/weights.min():8.2f} {n_unique:>10d}")
 
-print("\n推荐：公式 2 (sqrt)，因为它产生适中权重范围 (~1.6×)，数值稳定。")
-print("也可以在训练中验证哪种公式对稀有金属提升最大。")
+print("\nRecommendation: formula 2 (sqrt), because it yields a moderate weight range (~1.6×) and is numerically stable.")
+print("Alternatively, validate during training which formula helps rare metals the most.")

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""第三轮硬伤一: WBO 节点特征的可加分解 (诊断变体 E/F)
-E_9d6d  = A(8d) + node3[0]       即 WBO 有效配位数 nb_cnt     -> 测配位数的增量贡献
-F_10d6d = A(8d) + node3[1],node3[2] 即 sum_BO + max_BO        -> 测键级大小的增量贡献
-(已有 C_11d6d = A + node3[0,1,2] = E ∪ F, 用于验证可加性)
-每变体 3-fold × 3-seed = 9 模型, 协议与 server_train_variants.py 逐字一致
-数据: new_domain_iso.pt (服务器已有, 无需重传)
+"""Round-3 major issue 1: additive decomposition of the WBO node features (diagnostic variants E/F)
+E_9d6d  = A(8d) + node3[0]        i.e. WBO effective coordination number nb_cnt     -> measures the incremental contribution of coordination number
+F_10d6d = A(8d) + node3[1],node3[2] i.e. sum_BO + max_BO        -> measures the incremental contribution of bond-order magnitude
+(existing C_11d6d = A + node3[0,1,2] = E ∪ F, used to verify additivity)
+Each variant: 3-fold × 3-seed = 9 models, protocol verbatim identical to server_train_variants.py
+Data: new_domain_iso.pt (already on the server, no need to re-upload)
 """
 import os, sys, time, json
 import numpy as np, torch, torch.nn as nn, torch.optim as optim
@@ -30,15 +30,15 @@ N_TARGETS = len(targets)
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12; DROPOUT = 0.10
 
 VARIANTS = {
-    'E_9d6d':  dict(npart=(0,),   rbf=False, bo=False, tag='WBO有效配位数 9d/6d (诊断)'),
-    'F_10d6d': dict(npart=(1, 2), rbf=False, bo=False, tag='WBO键级大小 10d/6d (诊断)'),
+    'E_9d6d':  dict(npart=(0,),   rbf=False, bo=False, tag='WBO effective coordination number 9d/6d (diagnostic)'),
+    'F_10d6d': dict(npart=(1, 2), rbf=False, bo=False, tag='WBO bond-order magnitude 10d/6d (diagnostic)'),
 }
 
-# ================= 数据加载 =================
+# ================= Data loading =================
 DATA = torch.load('new_domain_iso.pt', map_location='cpu', weights_only=False)
 y_all = DATA['y_all'].float()
 N = y_all.size(0)
-print(f'新域: N={N:,}')
+print(f'New domain: N={N:,}')
 for v, cfg in VARIANTS.items():
     print(f'  {v}: {cfg["tag"]}')
 
@@ -57,7 +57,7 @@ def build_variant_graphs(npart=(), rbf=True, bo=True):
         graphs.append({'x': x, 'edge_index': DATA['ei_ls'][i], 'edge_attr': ea})
     return graphs
 
-# ================= 划分 (同协议: 所有变体共用同一划分 → 完全配对) =================
+# ================= Split (same protocol: all variants share the same split → fully paired) =================
 idx_all = np.random.RandomState(42).permutation(N)
 n_test = int(N * 0.15)
 te_idx = idx_all[:n_test]
@@ -70,7 +70,7 @@ np.savez('ensemble_split_new.npz', te_idx=te_idx, cv_idx=cv_idx,
          fold_1_train=cv_idx[fold_splits[1][0]], fold_1_val=cv_idx[fold_splits[1][1]],
          fold_2_train=cv_idx[fold_splits[2][0]], fold_2_val=cv_idx[fold_splits[2][1]])
 
-# ================= 金属权重 (原协议 sqrt 截断 [0.5,3.0]) =================
+# ================= Metal weights (original protocol: sqrt truncated to [0.5,3.0]) =================
 atoms_filt = DATA['atoms_filt']
 mc = Counter()
 for atoms in atoms_filt:
@@ -86,7 +86,7 @@ for i, atoms in enumerate(atoms_filt):
 sample_weights = sample_weights / sample_weights.mean()
 print(f'Sample weights: mean={sample_weights.mean():.3f}, max={sample_weights.max():.2f}')
 
-# ================= 模型 (与 notebook 逐字一致) =================
+# ================= Model (verbatim identical to the notebook) =================
 def segment_softmax(scores, dst, Nn):
     scores_f32 = scores.float()
     max_v = torch.full((Nn, scores_f32.size(1)), float('-inf'), device=scores_f32.device, dtype=torch.float32)
@@ -155,7 +155,7 @@ class XYZ_GNN(nn.Module):
         mf = scatter_mean_per_graph(h[mm], batch[mm], n_graphs) if mm.any() else torch.zeros(n_graphs, h.size(1), device=h.device, dtype=h.dtype)
         return self.readout(torch.cat([mean_h, max_h, mf], dim=1))
 
-# ================= 训练 (与 notebook cell5 逐字一致) =================
+# ================= Training (verbatim identical to notebook cell5) =================
 transfer_stream = torch.cuda.Stream()
 
 def train_one_model(graphs, y_all_gpu, sw_gpu, train_idx, val_idx, seed, fold_name,
@@ -276,7 +276,7 @@ def train_one_model(graphs, y_all_gpu, sw_gpu, train_idx, val_idx, seed, fold_na
     del model; torch.cuda.empty_cache()
     return best_state, y_mean_local.cpu(), y_std_local.cpu(), val_r2s
 
-# ================= 主循环: 变体 × 3-fold × 3-seed =================
+# ================= Main loop: variant × 3-fold × 3-seed =================
 SEEDS = [42, 123, 456]
 y_all_gpu = y_all.to(device)
 sw_gpu = sample_weights.to(device)
@@ -323,7 +323,7 @@ for VNAME, VCFG in VARIANTS.items():
         torch.save({'models': all_models, 'log': results_log}, ckpt_path)
         print(f'  checkpoint saved ({len(all_models)}/9)')
 
-    # ---- 测试集 ensemble 评估 ----
+    # ---- Ensemble evaluation on the test set ----
     print(f'  Test eval for {VNAME}...', flush=True)
     g_x = [g['x'] for g in graphs]; g_ei = [g['edge_index'] for g in graphs]
     g_ea = [g['edge_attr'] for g in graphs]

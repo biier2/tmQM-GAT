@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""R4: 跨泛函 BO 对照实验 — 数据准备
-数据: tmQMg 74,547 (⊆ tmQM, CSD_code 对齐) | 标签: ωB97M-V (tzvp_*)
-模型A: SMILES GAT 节点8d/边6d | 模型B: +TPSSh Mayer BO 3d 节点增广 (nb/sb/mb)
-输出 r4_dataset.npz: 图特征 + 标签 + codes
+"""R4: cross-functional BO control experiment — data preparation
+Data: tmQMg 74,547 (⊆ tmQM, CSD_code aligned) | Labels: ωB97M-V (tzvp_*)
+Model A: SMILES GAT node 8d/edge 6d | Model B: +TPSSh Mayer BO 3d node augmentation (nb/sb/mb)
+Output r4_dataset.npz: graph features + labels + codes
 """
 import gzip, json, re, sys
 import numpy as np
@@ -15,7 +15,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 TQMG = 'd:/ml/chem_ml5/tmQMg_properties_and_targets.csv'
 TMQM_Y = 'd:/ml/chem_ml5/data_tmQM/local_vB/tmQM_y.csv'
 
-# ---------- 1. 读 tmQMg + tmQM_y 回退映射 ----------
+# ---------- 1. Read tmQMg + the tmQM_y fallback mapping ----------
 df = pd.read_csv(TQMG)
 y_df = pd.read_csv(TMQM_Y, sep=';')
 smiles_fallback = dict(zip(y_df['CSD_code'], y_df['SMILES']))
@@ -34,7 +34,7 @@ for code, smi in zip(df['id'], df['smiles']):
         fb = smiles_fallback.get(code, '')
         smi_used.append(fb if isinstance(fb, str) else '')
 
-# ---------- 2. 流式扫 xyz.gz: 目标 CSD_code -> 原子序序列 ----------
+# ---------- 2. Stream-scan xyz.gz: target CSD_code -> atomic-number sequence ----------
 def atom_to_z(sym):
     tbl = {"H":1,"Li":3,"Be":4,"B":5,"C":6,"N":7,"O":8,"F":9,"Na":11,"Mg":12,
            "Al":13,"Si":14,"P":15,"S":16,"Cl":17,"K":19,"Ca":20,"Sc":21,"Ti":22,
@@ -64,9 +64,9 @@ for part in [1, 2, 3]:
                     atoms.append(atom_to_z(sp[0]))
             if m and m.group(1) in want:
                 xyz_atoms[m.group(1)] = atoms
-print(f'xyz 匹配: {len(xyz_atoms)}/{len(want)}')
+print(f'xyz matched: {len(xyz_atoms)}/{len(want)}')
 
-# ---------- 3. 流式扫 BO.gz: 目标 CSD_code -> per-atom (nb, sb, mb) ----------
+# ---------- 3. Stream-scan BO.gz: target CSD_code -> per-atom (nb, sb, mb) ----------
 bo_feats = {}    # code -> (N,) x 3
 for part in [1, 2, 3]:
     with gzip.open(f'd:/ml/chem_ml5/data_tmQM/local_vB/tmQM_X{part}.BO.gz', 'rt') as f:
@@ -85,7 +85,7 @@ for part in [1, 2, 3]:
                     src = int(sp[0]) - 1
                 except ValueError:
                     continue
-                # 行格式: idx elem totalBO (elem nbr bo)* ; 三元组从索引 3 起
+                # row format: idx elem totalBO (elem nbr bo)* ; triples start at index 3
                 nbrs, bos = [], []
                 j = 3
                 while j + 1 < len(sp):
@@ -97,9 +97,9 @@ for part in [1, 2, 3]:
                 rows.append((src, nbrs, bos))
         if cur_code and cur_code in want and rows:
             bo_feats[cur_code] = rows
-print(f'BO 匹配: {len(bo_feats)}/{len(want)}')
+print(f'BO matched: {len(bo_feats)}/{len(want)}')
 
-# 转 per-atom (nb, sb, mb): nb = BO>0.05 邻居数-1, sb = 行和, mb = 行最大
+# Convert to per-atom (nb, sb, mb): nb = BO>0.05 neighbour count-1, sb = row sum, mb = row max
 bo_agg = {}
 for code, rows in bo_feats.items():
     n_at = len(xyz_atoms.get(code, []))
@@ -112,7 +112,7 @@ for code, rows in bo_feats.items():
         agg[src, 2] = max(0, max(bos)) if bos else 0.0
     bo_agg[code] = agg
 
-# ---------- 4. SMILES 建图 (论文协议: 8d 节点 / 6d 边, dative->SINGLE 槽) ----------
+# ---------- 4. SMILES graph construction (manuscript protocol: 8d node / 6d edge, dative->SINGLE slot) ----------
 ELEMENT_DATA_SM = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),
     15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),
     25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),
@@ -137,7 +137,7 @@ def fast_match(sm_atoms, xyz_atoms):
 
 xs8, xs11, eis, eas, ys, ok_codes, ok_metals = [], [], [], [], [], [], []
 n_fail_smi = n_fail_bo = 0
-# id -> 标签向量 dict (O(1) 查找, 避免循环内全表扫描)
+# id -> label vector dict (O(1) lookup, avoids a full-table scan inside the loop)
 label_dict = {r['id']: r[LABEL_COLS].values.astype(np.float32) for _, r in df.iterrows()}
 for code, smi in zip(codes, smi_used):
     mol = Chem.MolFromSmiles(smi) if smi else None
@@ -162,7 +162,7 @@ for code, smi in zip(codes, smi_used):
     for bond in mol.GetBonds():
         i, j = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
         bt = int(bond.GetBondType())
-        if bt == 37: bt = 1                      # DATIVE -> SINGLE 槽
+        if bt == 37: bt = 1                      # DATIVE -> SINGLE slot
         za, zb = sm_atoms[i], sm_atoms[j]
         is_ml = float((za >= 21) != (zb >= 21))
         is_ring = float(bond.IsInRing())
@@ -182,7 +182,7 @@ for code, smi in zip(codes, smi_used):
 y_all = np.array(ys, dtype=np.float32)
 mask = ~(np.isnan(y_all).any(axis=1) | np.isinf(y_all).any(axis=1))
 keep = np.where(mask)[0]
-print(f'建图成功 {len(ok_codes)} (SMILES 失败 {n_fail_smi}, xyz/BO 缺失 {n_fail_bo}), NaN 标签剔除 {(~mask).sum()}')
+print(f'graphs built {len(ok_codes)} (SMILES failures {n_fail_smi}, missing xyz/BO {n_fail_bo}), NaN labels removed {(~mask).sum()}')
 
 graphs = [{'x8': xs8[i], 'x11': xs11[i], 'edge_index': eis[i], 'edge_attr': eas[i]}
           for i in keep]

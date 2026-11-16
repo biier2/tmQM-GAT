@@ -1,27 +1,27 @@
-# data_tmQM/paper_domain_vA — 论文主域划分文件
+# data_tmQM/paper_domain_vA — paper main-domain split files
 
-## 内容
+## Contents
 
-| 文件 | 说明 |
+| File | Description |
 |---|---|
-| ensemble_split.npz | 论文主域划分：te_idx 13,547 / cv_idx 76,770 / fold_0-2_train 51,180 / fold_0-2_val 25,590 |
+| ensemble_split.npz | Paper main-domain split: te_idx 13,547 / cv_idx 76,770 / fold_0-2_train 51,180 / fold_0-2_val 25,590 |
 
-由 build_ensemble.py:375 创建（RandomState(42) 排列，15% 测试），mtime 8 月 4 日 20:50。
+Created by build_ensemble.py:375 (RandomState(42) permutation, 15% test), mtime 4 Aug 20:50.
 
-## 索引指向什么（2026-08-28 终版结论）
+## What the indices point to (final conclusion, 2026-08-28)
 
-**te_idx / cv_idx 索引的是「原始 tmQM 文件（102,077 TM 块）解析保留序列的前 90,317 个」。**
+**te_idx / cv_idx index "the first 90,317 entries of the parse-retained sequence of the original tmQM files (102,077 TM blocks)".**
 
-- 8 月主实验的「96,984 TM / 90,317 建图（6,667 失败）」是从同一套原始文件删块派生的（删 5,093 个 TM 块），其保留序列与原始文件保留序列的**前 90,317 个逐位一致**——所以 96,984 版本没有独立地位，ensemble_split.npz 直接对原始文件的保留序列取前 90,317 即可复现。
-- **铁证**：本地 eval_smiles_gat.py 用本机原始文件（local_vB/，与服务器原始文件同一套）+ te_idx 重推 SMILES 部署检查点 = **0.932，与论文定稿数字完全一致**。
-- 因此**不存在「版本 A / 版本 B 两套对不齐的数据」**：本机 local_vB/ 与服务器原始文件是同一套文件；差异只来自 rdkit 版本（服务器 (tmqm) 环境保留 95,152，本机 rdkit2024 保留 95,171，差 19 个分子的解析结果，截断后可能错位几个分子）。
+- The August main experiment's "96,984 TM / 90,317 graphs built (6,667 failed)" was derived from the same set of original files by deleting blocks (5,093 TM blocks removed); its retained sequence matches the first 90,317 entries of the original files' retained sequence **position by position** — so the 96,984 version has no independent standing, and ensemble_split.npz can be reproduced by simply taking the first 90,317 entries of the original files' retained sequence.
+- **Conclusive evidence**: locally, eval_smiles_gat.py re-ran the SMILES deployment checkpoint using the local original files (local_vB/, the same set as the server's original files) + te_idx = **0.932, exactly matching the final manuscript number**.
+- Therefore **there are no "version A / version B misaligned datasets"**: the local local_vB/ and the server's original files are the same set of files; the only difference comes from the rdkit version (the server (tmqm) environment retains 95,152, local rdkit2024 retains 95,171 — a difference of 19 molecules' parse results, which may shift the alignment by a few molecules after truncation).
 
-## 用途
+## Purpose
 
-- 与预测产物对齐：根目录 `ensemble_predictions.npz`、`smiles_test_preds.npy`、`server_ckpt_preds.npy`（均按 te_idx 13,547 生成）
-- DimeNet++ 预处理的数据目录候选（dimenetpp_baseline\preprocess_dimenet.py 会自动找 `../data_tmQM/paper_domain_vA`——但注意该脚本要求的 xyz/csv 不在这里，必须用服务器文件或在服务器上跑）
+- Aligning with the prediction artifacts: root-directory `ensemble_predictions.npz`, `smiles_test_preds.npy`, `server_ckpt_preds.npy` (all generated on te_idx 13,547)
+- Candidate data directory for DimeNet++ preprocessing (dimenetpp_baseline\preprocess_dimenet.py automatically looks for `../data_tmQM/paper_domain_vA` — but note that the xyz/csv files it requires are not here; you must use the server files or run on the server)
 
-## ⚠️ 一致性提醒
+## ⚠️ Consistency warning
 
-- 任何重算 90,317 域（如 DimeNet++ 预处理）：在**服务器 (tmqm) 环境**里解析原始文件并截断前 90,317 个保留分子（`preprocess_dimenet.py` 已内置截断 + 三锚点校验）；不要在本地跑（rdkit 版本差会错位）。
-- 历史脚本 eval_smiles_gat.py / m1_per_metal.py 曾用「本机原始文件 + 版本 A 划分/预测」的组合在本机出数——0.932 复现证明该组合在 te_idx 位置逐位正确，历史数字可信。
+- Any recomputation of the 90,317 domain (e.g. DimeNet++ preprocessing): parse the original files in the **server (tmqm) environment** and truncate to the first 90,317 retained molecules (`preprocess_dimenet.py` has the truncation + three-anchor check built in); do not run it locally (the rdkit version difference will misalign the indices).
+- The historical scripts eval_smiles_gat.py / m1_per_metal.py produced numbers locally with the combination of "local original files + version-A split/predictions" — the 0.932 reproduction proves that this combination is correct position by position at the te_idx positions, so the historical numbers are trustworthy.

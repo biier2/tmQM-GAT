@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""vA 域 (90,317 图 / 13,547 测试) 服务器重建 —— ensemble_cv_weighted.ipynb cell 2-4 逐字管线
-用途: 生成 R5 (SMILES 9 成员集成同协议重训) 的输入 vA_domain_smiles.pt
-要求: 与 ensemble_cv_weighted.ipynb 构建时【同一个 conda 环境】(RDKit 版本一致) 与【同一份数据】
-用法: python vA_build_server.py
-输出: vA_domain_smiles.pt + 自检报告 (te_idx / y_true 与 ensemble_predictions.npz 全等才保存)
+"""Server-side rebuild of the vA domain (90,317 graphs / 13,547 test) — pipeline verbatim from ensemble_cv_weighted.ipynb cells 2-4
+Purpose: generate the input vA_domain_smiles.pt for R5 (SMILES 9-member ensemble retrained under the same protocol)
+Requirement: [the same conda environment] (same RDKit version) and [the same data] as when ensemble_cv_weighted.ipynb was built
+Usage: python vA_build_server.py
+Output: vA_domain_smiles.pt + self-check report (saved only if te_idx / y_true are exactly equal to ensemble_predictions.npz)
 """
 import sys, os
 import numpy as np, pandas as pd, gzip
@@ -11,9 +11,9 @@ from rdkit import Chem
 from rdkit import RDLogger; RDLogger.logger().setLevel(RDLogger.ERROR)
 import torch
 
-# ---- 配置 (按服务器实际路径修改) ----
-ROOT = '.'                     # tmQM_X{1,2,3}.xyz.gz 与 tmQM_y.csv 所在目录
-EP   = 'ensemble_predictions.npz'   # 3D 集成预测 (notebook 产物, 含 te_idx / y_true)
+# ---- Configuration (edit to the actual server paths) ----
+ROOT = '.'                     # directory containing tmQM_X{1,2,3}.xyz.gz and tmQM_y.csv
+EP   = 'ensemble_predictions.npz'   # 3D ensemble predictions (notebook artefact, holds te_idx / y_true)
 OUT  = 'vA_domain_smiles.pt'
 
 print(f'RDKit {Chem.rdBase.rdkitVersion} | torch {torch.__version__} | python {sys.version.split()[0]}', flush=True)
@@ -70,7 +70,7 @@ for part in [1, 2, 3]:
     m, l = parse_one(f"{ROOT}/tmQM_X{part}.xyz.gz", start_idx=len(all_m))
     print(f'  part{part}: {len(m)} TM complexes', flush=True)
     all_m.extend(m); all_l.extend(l)
-print(f'TM: {len(all_m)} (期望 96984 = 27318+34065+35601)', flush=True)
+print(f'TM: {len(all_m)} (expected 96984 = 27318+34065+35601)', flush=True)
 
 smiles_list, labels_list, csv_list, code_list = [], [], [], []
 failed = 0
@@ -83,7 +83,7 @@ for m, lab in zip(all_m, all_l):
         failed += 1; continue
     smiles_list.append(smi); labels_list.append(lab)
     csv_list.append(csv_i); code_list.append(codes[csv_i] if csv_i < len(codes) else '')
-print(f'Built {len(smiles_list)} graphs ({failed} failed) — 期望 90317 / 6667', flush=True)
+print(f'Built {len(smiles_list)} graphs ({failed} failed) — expected 90317 / 6667', flush=True)
 
 labels = np.array(labels_list, dtype=np.float64)
 nan_mask = ~np.isnan(labels).any(axis=1)
@@ -91,7 +91,7 @@ smiles_list = [s for s, k in zip(smiles_list, nan_mask) if k]
 labels = labels[nan_mask]
 csv_list = [c for c, k in zip(csv_list, nan_mask) if k]
 code_list = [c for c, k in zip(code_list, nan_mask) if k]
-print(f'After NaN removal: {len(smiles_list)} — 期望 90317', flush=True)
+print(f'After NaN removal: {len(smiles_list)} — expected 90317', flush=True)
 
 n = len(smiles_list)
 idx_all = np.random.RandomState(42).permutation(n)
@@ -100,16 +100,16 @@ te_idx = idx_all[:n_test].copy()
 tr_idx = idx_all[n_test:].copy()
 print(f'Total {n} | Fixed test set: {n_test} (15%) | CV pool: {n - n_test} (85%)', flush=True)
 
-# ---- 自检 vs ensemble_predictions.npz ----
+# ---- Self-check vs ensemble_predictions.npz ----
 ep = np.load(EP)
 te_ref = ep['te_idx']; yt_ref = ep['y_true'].astype(np.float64)
 te_eq = (n == 90317) and np.array_equal(te_idx, te_ref)
 maxd = float(np.abs(labels[te_idx] - yt_ref).max()) if (n == 90317 and labels.shape[1] == yt_ref.shape[1]) else float('inf')
-print(f'自检: te_idx 全等 = {te_eq} | y_true max|diff| = {maxd:.3e}', flush=True)
+print(f'self-check: te_idx exactly equal = {te_eq} | y_true max|diff| = {maxd:.3e}', flush=True)
 ok = te_eq and maxd <= 1e-6
 
 if not ok:
-    print('自检未通过 → 尝试自动校正 (当前 RDKit 与 notebook 不一致时, 按 npz 对齐删除多余行)', flush=True)
+    print('self-check failed → attempting automatic correction (when the current RDKit differs from the notebook, drop the extra rows following the npz alignment)', flush=True)
     lab = labels.copy()
     sm = list(smiles_list); cs = list(csv_list); cd = list(code_list)
     def align(lb):
@@ -121,7 +121,7 @@ if not ok:
                     sh[i] = d; break
         return sh
     sh = align(lab)
-    print(f'校正前: n={len(lab)}, 未命中 {(sh<0).sum()}, max shift {sh.max() if len(sh) else -1}', flush=True)
+    print(f'before correction: n={len(lab)}, misses {(sh<0).sum()}, max shift {sh.max() if len(sh) else -1}', flush=True)
     guard = 0
     while len(lab) > 90317 and guard < 60:
         guard += 1
@@ -145,9 +145,9 @@ if not ok:
             if okp:
                 found = p; break
         if found is None:
-            print(f'校正失败: 第 {guard} 步无候选', flush=True)
+            print(f'correction failed: no candidate at step {guard}', flush=True)
             break
-        print(f'  删 pos={found} csv_idx={cs[found]} {cd[found]}: {sm[found][:60]}', flush=True)
+        print(f'  delete pos={found} csv_idx={cs[found]} {cd[found]}: {sm[found][:60]}', flush=True)
         lab = np.delete(lab, found, axis=0)
         del sm[found], cs[found], cd[found]
         sh = align(lab)
@@ -156,13 +156,13 @@ if not ok:
         te_idx = idx_all[:13547].copy(); tr_idx = idx_all[13547:].copy()
         te_eq = np.array_equal(te_idx, te_ref)
         maxd = float(np.abs(lab[te_idx] - yt_ref).max()) if te_eq else float('inf')
-        print(f'校正后自检: te_idx 全等 = {te_eq} | y_true max|diff| = {maxd:.3e}', flush=True)
+        print(f'self-check after correction: te_idx exactly equal = {te_eq} | y_true max|diff| = {maxd:.3e}', flush=True)
         if te_eq and maxd <= 1e-6:
-            print('自动校正成功 (注意: 当前 env 与 notebook 的 RDKit 不同, 已按 notebook 输出校正)', flush=True)
+            print('automatic correction succeeded (note: the current env has a different RDKit from the notebook; corrected against the notebook output)', flush=True)
             smiles_list, labels, csv_list, code_list = sm, lab, cs, cd
             ok = True
     if not ok:
-        print('自动校正失败。请检查: 1) 是否与 notebook 同一 conda 环境 2) 数据文件是否相同。把完整输出发回。', flush=True)
+        print('automatic correction failed. Please check: 1) whether you are in the same conda environment as the notebook 2) whether the data files are identical. Send the full output back.', flush=True)
         sys.exit(1)
 
 if ok:
@@ -176,4 +176,4 @@ if ok:
         'csd_code': code_list,
     }, OUT)
     print(f'SAVED {OUT}', flush=True)
-    print('R5 加载示例: d = torch.load("vA_domain_smiles.pt"); smis=d["smiles"]; y=d["labels"]; te=d["te_idx"]; tr=d["tr_idx"]', flush=True)
+    print('R5 load example: d = torch.load("vA_domain_smiles.pt"); smis=d["smiles"]; y=d["labels"]; te=d["te_idx"]; tr=d["tr_idx"]', flush=True)

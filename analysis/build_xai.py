@@ -12,13 +12,13 @@ def add_md(src, cid):
 
 add_md("""# GAT Attention XAI Analysis
 
-## 分析目标
+## Analysis goals
 
-提取XYZ GNN各层GAT注意力权重, 分析:
-1. 哪些原子获得最高注意力?
-2. 配位原子(N/O/S/P) vs 金属原子的top-5出现频率
-3. 与tmGNN-XAI的"donor atoms in top-5 >99.8%"对标
-4. 不同性质(偶极矩 vs 金属电荷)的注意力模式差异""", "eq_intro")
+Extract the GAT attention weights of each layer in the XYZ GNN and analyse:
+1. Which atoms receive the highest attention?
+2. Top-5 appearance frequency of donor atoms (N/O/S/P) vs metal atoms
+3. Benchmark against the tmGNN-XAI result "donor atoms in top-5 >99.8%"
+4. Differences in attention patterns between properties (dipole vs metal charge)""", "eq_intro")
 
 add_code("""import numpy as np, pandas as pd, time, json, gzip, os
 import torch, torch.nn as nn
@@ -30,7 +30,7 @@ print(f'Device: {device}')
 from rdkit import Chem; from rdkit import RDLogger; RDLogger.logger().setLevel(RDLogger.ERROR)
 from tqdm import tqdm
 
-# ===== 加载数据 (同tmQM_Fe_XYZ) =====
+# ===== load data (same as tmQM_Fe_XYZ) =====
 df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')
 df_y = df_y.rename(columns={'HL_Gap':'gap','HOMO_Energy':'homo','LUMO_Energy':'lumo',
     'Dipole_M':'dipole','Metal_q':'metal_charge','Electronic_E':'E_elec',
@@ -98,7 +98,7 @@ fe_cmplx = all_m; y_fe = np.array(all_l,dtype=np.float32); is_Fe = np.array(all_
 print(f'Total: {len(fe_cmplx)} TM complexes')
 """, "eq_load")
 
-add_code("""# ===== 模型定义 (和训练完全一致) =====
+add_code("""# ===== model definition (exactly as in training) =====
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12
 
 def segment_softmax(scores, dst, N):
@@ -185,13 +185,13 @@ else:
 model.eval()
 """, "eq_model")
 
-add_code("""# ===== 快速建图: 只用SMILES, 不用BO/XYZ (XAI推理只需图拓扑) =====
+add_code("""# ===== quick graph building: SMILES only, no BO/XYZ (XAI inference only needs the graph topology) =====
 ELEMENT_DATA_SM = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),44:(5,8),45:(5,9),46:(5,10),47:(5,11),48:(5,12),53:(5,17),72:(6,4),73:(6,5),74:(6,6),75:(6,7),76:(6,8),77:(6,9),78:(6,10),79:(6,11),80:(6,12)}
 BOND_TYPES_SM=[1,2,3,12]; B2I_SM={b:i for i,b in enumerate(BOND_TYPES_SM)}; N_BT_SM=4
 rbf_c=np.linspace(1.0,5.0,16)
 
 def build_xai_graph(smiles):
-    """Build graph for XAI inference (25-dim edge features with zero BO/distance fallback)"""
+    '''Build graph for XAI inference (25-dim edge features with zero BO/distance fallback)'''
     mol = Chem.MolFromSmiles(smiles)
     if mol is None: return None
     N = mol.GetNumAtoms()
@@ -230,7 +230,7 @@ for idx in tqdm(np.random.RandomState(42).choice(len(fe_cmplx), min(N_XAI, len(f
 print(f'Built {len(xai_graphs)} XAI graphs')
 """, "eq_graphs")
 
-add_code("""# ===== 提取注意力权重 =====
+add_code("""# ===== extract attention weights =====
 print('Extracting attention weights...')
 DONOR_ELEMENTS = {'N','O','S','P','Cl','Br','I'}
 
@@ -284,7 +284,7 @@ print(f'Metal atoms: {metal_total}/{total_top5} = {100*metal_total/total_top5:.1
 print(f'Organic (C,H,etc): {total_top5-donor_total-metal_total}/{total_top5} = {100*(total_top5-donor_total-metal_total)/total_top5:.1f}%')
 """, "eq_xai")
 
-add_code("""# ===== 可视化 =====
+add_code("""# ===== visualization =====
 import matplotlib.pyplot as plt
 plt.rcParams['font.sans-serif'] = ['Noto Sans CJK SC', 'DejaVu Sans']; plt.rcParams['axes.unicode_minus'] = False
 

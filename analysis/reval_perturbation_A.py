@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""扰动归因重跑 — 新 A 变体 9 模型集成 (严格口径: 同协议 RandomState(123) 采样 2000, 逐原子零掩码)
-attribution = base_pred − masked_pred (正负归因, 集成均值)
-donor = {N,O,S,P,Cl,Br,I}; 第二变体加金属键合碳 (与金属相邻的 C)
-输出 perturbation_A_results.json
+"""Perturbation attribution rerun - new A variant 9-model ensemble (strict protocol: same RandomState(123) sampling of 2000, per-atom zero masking)
+attribution = base_pred − masked_pred (signed attribution, ensemble mean)
+donor = {N,O,S,P,Cl,Br,I}; the second variant adds metal-bonded carbon (C adjacent to the metal)
+Output perturbation_A_results.json
 """
 import sys, json, time
 sys.stdout.reconfigure(encoding='utf-8')
@@ -82,7 +82,7 @@ class XYZ_GNN(nn.Module):
         mf = scatter_mean_per_graph(h[mm], batch[mm], n_graphs) if mm.any() else torch.zeros(n_graphs, h.size(1), device=h.device, dtype=h.dtype)
         return self.readout(torch.cat([mean_h, max_h, mf], dim=1))
 
-# ---------- 加载 ----------
+# ---------- Loading ----------
 DATA = torch.load('new_domain_iso.pt', map_location='cpu', weights_only=False)
 N = DATA['y_all'].size(0)
 ck = torch.load('ensemble_checkpoint_A_8d6d.pt', map_location='cpu', weights_only=False)
@@ -92,7 +92,7 @@ for mdata in ck['models']:
     state = {k.replace('_orig_mod.', ''): v for k, v in mdata['state'].items()}
     m.load_state_dict(state)
     models.append((m, mdata['y_mean'], mdata['y_std']))
-print(f'{len(models)} 模型加载完毕', flush=True)
+print(f'{len(models)} models loaded', flush=True)
 
 DONOR_Z = {7, 8, 15, 16, 17, 35, 53}
 
@@ -104,13 +104,13 @@ def ensemble_pred(x, ei, ea):
         outs.append((p * ys + ym).numpy())
     return np.mean(np.stack(outs, 0), axis=0)
 
-# ---------- 采样 (同协议 RandomState(123), n=2000, 全域) ----------
+# ---------- Sampling (same protocol RandomState(123), n=2000, full domain) ----------
 N_PERTURB = 2000
 perturb_idx = np.random.RandomState(123).choice(N, N_PERTURB, replace=False)
-print(f'采样 {N_PERTURB} 个络合物', flush=True)
+print(f'Sampled {N_PERTURB} complexes', flush=True)
 
-donor_frac = {t: [] for t in targets}      # 每络合物 donor |attr| 占比
-donor_mc_frac = {t: [] for t in targets}   # donor + 金属键合碳
+donor_frac = {t: [] for t in targets}      # per-complex donor |attr| fraction
+donor_mc_frac = {t: [] for t in targets}   # donor + metal-bonded carbon
 t0 = time.time()
 for ii, i in enumerate(perturb_idx):
     g = {'x': torch.as_tensor(DATA['node8s'][i], dtype=torch.float32),
@@ -120,7 +120,7 @@ for ii, i in enumerate(perturb_idx):
     n_atoms = x.size(0)
     zs = [int(x[a, 0].item()) for a in range(n_atoms)]
     base = ensemble_pred(x, ei, ea)
-    # 金属 + 金属键合碳
+    # Metal + metal-bonded carbon
     metal_idx = [a for a in range(n_atoms) if x[a, 7] > 0.5]
     mc_carbons = set()
     for a in range(n_atoms):
@@ -151,4 +151,4 @@ for t in targets:
               'donor_mc_mean': float(dm.mean()), 'donor_mc_std': float(dm.std())}
     print(f'{t:14s}: donor {d.mean():.1f}% ± {d.std():.1f}% | +M-C {dm.mean():.1f}% ± {dm.std():.1f}%', flush=True)
 json.dump(out, open('perturbation_A_results.json', 'w'), indent=2)
-print(f'SAVED perturbation_A_results.json [{time.time()-t0:.0f}s 总]')
+print(f'SAVED perturbation_A_results.json [{time.time()-t0:.0f}s total]')

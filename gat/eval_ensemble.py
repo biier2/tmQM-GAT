@@ -1,4 +1,4 @@
-"""独立评估脚本 — 从 checkpoint 读取模型，在测试集上评估。不依赖 Jupyter kernel 状态。"""
+"""Standalone evaluation script — reads the model from a checkpoint and evaluates it on the test set. Does not depend on Jupyter kernel state."""
 import numpy as np, pandas as pd, os, sys, json
 import torch, torch.nn as nn
 from torch.amp import autocast
@@ -8,7 +8,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Device: {device}')
 os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', 'expandable_segments:True')
 
-# ===== 加载 checkpoint =====
+# ===== Load checkpoint =====
 ckpt = torch.load('ensemble_checkpoint.pt', map_location='cpu')
 all_models = ckpt['models']
 results_log = ckpt['log']
@@ -16,12 +16,12 @@ print(f'Loaded {len(all_models)} models from checkpoint')
 for m in all_models:
     print(f'  Fold{m["fold"]}_Seed{m["seed"]}')
 
-# ===== 加载 split =====
+# ===== Load split =====
 split = np.load('data_tmQM/paper_domain_vA/ensemble_split.npz')
 te_idx = split['te_idx']
 print(f'Test set: {len(te_idx):,} samples')
 
-# ===== 加载目标值 =====
+# ===== Load target values =====
 df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')
 df_y = df_y.rename(columns={
     'HL_Gap': 'gap', 'HOMO_Energy': 'homo', 'LUMO_Energy': 'lumo',
@@ -31,7 +31,7 @@ df_y = df_y.rename(columns={
 })
 targets = ['gap','homo','lumo','dipole','metal_charge','E_elec','E_disp','polarizability']
 
-# ===== 加载所有数据 (与 ensemble CV 完全相同) =====
+# ===== Load all data (exactly the same as the ensemble CV) =====
 import gzip
 from rdkit import Chem
 from rdkit import RDLogger; RDLogger.logger().setLevel(RDLogger.ERROR)
@@ -209,7 +209,7 @@ def collate_cpu(indices):
         'edge_attr': torch.cat(ea_list, dim=0).to(device),
     }, torch.cat(batch_list, dim=0).to(device)
 
-# ===== 模型定义 (与 ensemble CV 相同) =====
+# ===== Model definition (same as ensemble CV) =====
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12; DROPOUT = 0.10
 
 def segment_softmax(scores, dst, N):
@@ -279,7 +279,7 @@ class XYZ_GNN(nn.Module):
         mf = scatter_mean_per_graph(h[mm], batch[mm], n_graphs) if mm.any() else torch.zeros(n_graphs, h.size(1), device=h.device, dtype=h.dtype)
         return self.readout(torch.cat([mean_h, max_h, mf], dim=1))
 
-# ===== 评估 =====
+# ===== Evaluation =====
 bs = 64
 y_test_true = y_all[te_idx]
 all_test_preds = []

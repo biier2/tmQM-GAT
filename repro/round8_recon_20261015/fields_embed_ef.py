@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""只读三件核对：
-① tmQMg CSV 列头 + COLUMN_MAP 目标字段（含 E_elec 的 zeta 层级问题）；
-② RDKit EmbedMolecule 便捷函数默认参数（ETKDG 版本/知识项）；
-③ s1_enrichment_all.json 全表 EF（对齐表 S15 印刷口径：paper = nominal × fN/K），
-   并在 1% 阈值上比对 SI 印刷值以确定各性质实际使用的 tail 方向。"""
+"""Read-only three-part check:
+(1) tmQMg CSV header + COLUMN_MAP target fields (including the zeta-level issue for E_elec);
+(2) RDKit EmbedMolecule convenience-function defaults (ETKDG version / knowledge terms);
+(3) s1_enrichment_all.json full-table EF (aligned to the printed definition of table S15: paper = nominal × fN/K),
+   and comparison against the SI printed values at the 1% threshold to determine the tail direction actually used for each property."""
 import csv
 import json
 import math
@@ -11,7 +11,7 @@ import sys
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-# ---------- ① tmQMg 字段 ----------
+# ---------- (1) tmQMg fields ----------
 CSV = r'D:\ml\chem_ml5\tmQMg_properties_and_targets.csv'
 print('===== ① tmQMg CSV =====')
 with open(CSV, encoding='utf-8', errors='replace', newline='') as f:
@@ -28,20 +28,20 @@ MAP = {
     'E_disp': 'tzvp_dispersion_energy',
     'polarizability': 'polarisability',
 }
-print('-- COLUMN_MAP 字段在表头中的存在性与样例值 --')
+print('-- Presence of COLUMN_MAP fields in the header and sample values --')
 for k, col in MAP.items():
     ok = col in header
     idx = header.index(col) if ok else -1
     print('  %-15s -> %-28s %s  sample=%s' % (k, col, 'OK' if ok else 'MISSING',
           first[idx] if ok else '-'))
-print('-- 含 energy / gap / homo / lumo / dipole / polaris 的全部列 --')
+print('-- All columns containing energy / gap / homo / lumo / dipole / polaris --')
 for i, h in enumerate(header):
     hl = h.lower()
     if any(t in hl for t in ('energy', 'gap', 'homo', 'lumo', 'dipole', 'polaris')):
         print('   [%2d] %s = %s' % (i, h, first[i]))
 
-# ---------- ② RDKit EmbedMolecule 默认参数 ----------
-print('\n===== ② RDKit EmbedMolecule 便捷函数 =====')
+# ---------- (2) RDKit EmbedMolecule defaults ----------
+print('\n===== (2) RDKit EmbedMolecule convenience function =====')
 import os
 import re
 import rdkit
@@ -51,7 +51,7 @@ src = open(allchem, encoding='utf-8', errors='replace').read()
 m = re.search(r'def EmbedMolecule\(', src)
 if m:
     body = src[m.start():m.start() + 3500]
-    # 打印函数体中涉及参数设置的片段
+    # print the fragments of the function body that involve parameter setting
     for ln in body.splitlines():
         if any(t in ln for t in ('params', 'TorsionAngle', 'BasicKnowledge', 'ETversion',
                                  'useRandomCoords', 'EmbedParameters', 'maxAttempts', 'randomSeed',
@@ -59,7 +59,7 @@ if m:
             print('  |', ln.rstrip()[:150])
 from rdkit.Chem import rdDistGeom
 p = rdDistGeom.EmbedParameters()
-print('-- EmbedParameters() 构造默认 --')
+print('-- EmbedParameters() construction defaults --')
 for a in ('ETversion', 'useExpTorsionAnglePrefs', 'useBasicKnowledge', 'useSmallRingTorsions',
           'useMacrocycleTorsions', 'useMacrocycle14config', 'enforceChirality',
           'useRandomCoords', 'maxAttempts', 'randomSeed', 'pruneRmsThresh', 'numThreads'):
@@ -68,11 +68,11 @@ for a in ('ETversion', 'useExpTorsionAnglePrefs', 'useBasicKnowledge', 'useSmall
     except AttributeError as e:
         print('   %-26s = <n/a>' % a)
 
-# ---------- ③ EF 全表 ----------
-print('\n===== ③ s1_enrichment_all.json =====')
+# ---------- (3) EF full table ----------
+print('\n===== (3) s1_enrichment_all.json =====')
 J = r'D:\ml\chem_ml5\s1_enrichment_all.json'
 d = json.load(open(J, encoding='utf-8'))
-# 扁平键：'family|prop|dir|frac'
+# flat keys: 'family|prop|dir|frac'
 rows = {}
 fams = set()
 props = set()
@@ -88,7 +88,7 @@ print('props    =', sorted(props))
 print('dirs     =', sorted(dirs))
 
 N = 13556
-SI1 = {  # 1% 印刷值：A / composition
+SI1 = {  # 1% printed values: A / composition
     'HL-Gap': (46.2, 5.1), 'HOMO': (78.4, 8.8), 'LUMO': (69.6, 2.9), 'Dipole': (56.4, 4.4),
     'MetalCharge': (94.5, 35.2), 'E_elec': (90.1, 99.7), 'E_disp': (87.9, 85.0),
     'Polarizability': (81.4, 90.9),
@@ -101,7 +101,7 @@ SI_ALIAS = {
     'polar': 'Polarizability', 'polarizability': 'Polarizability',
     'polarisability': 'Polarizability',
 }
-print('\n-- 1% 匹配（paper = ef_json × fN/K），确定各性质实际 tail 方向 --')
+print('\n-- 1% matching (paper = ef_json × fN/K), determining the tail direction actually used per property --')
 print('%-6s %-13s %-5s %-9s %-9s' % ('fam', 'prop', 'dir', 'paper', 'SI'))
 for (fam, prop, dr, f) in sorted(rows):
     if abs(f - 0.01) > 1e-9 or fam not in ('A', 'comp'):
@@ -117,7 +117,7 @@ for (fam, prop, dr, f) in sorted(rows):
     ok = 'MATCH' if abs(round(paper, 1) - target) < 0.051 else ''
     print('%-6s %-13s %-5s %-9.2f %-9.1f %s' % (fam, prop, dr, paper, target, ok))
 
-print('\n-- 完整扩展表（paper 口径，1 位小数）: 每性质 × (low/high) × {1,5,10}% --')
+print('\n-- Full extended table (paper definition, 1 decimal place): per property × (low/high) × {1,5,10}% --')
 for (fam, prop, dr, f) in sorted(rows):
     if fam not in ('A', 'composition'):
         continue
@@ -125,7 +125,7 @@ for (fam, prop, dr, f) in sorted(rows):
     K = math.ceil(f * N)
     paper = node['ef'] * (f * N) / K
     SI_ALIAS.get(prop)
-    # 汇总打印在下面第二段
+    # the summary is printed in the second block below
 out = {}
 for (fam, prop, dr, f) in rows:
     if fam not in ('A', 'comp'):

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""本地 CPU: B/D 变体在 ETKDG 测试图上的 9 模型推断 (补 geom_preds npz + Spearman)
-CPU 约 30-60 分钟, 后台运行"""
+"""Local CPU: 9-model inference for variants B/D on the ETKDG test graphs (adds the geom_preds npz + Spearman)
+Takes about 30-60 min on CPU, run in the background"""
 import sys, json
 sys.stdout.reconfigure(encoding='utf-8')
 import numpy as np, torch, torch.nn as nn
@@ -88,7 +88,7 @@ ETKDG = torch.load('etkdg_test_graphs.pt', map_location='cpu', weights_only=Fals
 ok = ETKDG['ok']
 n_te_trunc = int(0.15 * DATA['y_all'].size(0))
 idxs = np.array([i for i in range(n_te_trunc) if ok[i]])
-print(f'ETKDG 成功子集: {len(idxs)}', flush=True)
+print(f'ETKDG success subset: {len(idxs)}', flush=True)
 
 for VNAME, nd, ed in [('B_8d22d', 8, 22), ('D_11d23d', 11, 23)]:
     ck = torch.load(f'ensemble_checkpoint_{VNAME}.pt', map_location='cpu', weights_only=False)
@@ -115,14 +115,14 @@ for VNAME, nd, ed in [('B_8d22d', 8, 22), ('D_11d23d', 11, 23)]:
                 preds.append(p)
         preds = torch.cat(preds, 0)
         all_preds.append((preds * mdata['y_std'] + mdata['y_mean']).numpy())
-        print(f'  {VNAME} model {mi+1}/9 完成', flush=True)
+        print(f'  {VNAME} model {mi+1}/9 done', flush=True)
     ap = np.stack(all_preds, 0)
     ens = ap.mean(0)
     yt = y_all[te_idx].numpy()[idxs]
     np.savez(f'geom_preds_{VNAME}_etkdg.npz', preds=ap, ens_mean=ens, y_true=yt, idxs=idxs)
     print(f'{VNAME} saved, mean R² = {np.mean([r2_score(yt[:, p], ens[:, p]) for p in range(8)]):.4f}', flush=True)
 
-# Spearman 双几何 (B)
+# Spearman across the two geometries (B)
 zB = np.load('test_preds_B_8d22d.npz', allow_pickle=False)
 eB = np.load('geom_preds_B_8d22d_etkdg.npz', allow_pickle=False)
 idB = eB['idxs']

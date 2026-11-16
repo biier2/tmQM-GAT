@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""GCN/GIN/3D-GCN 基线 — 新域 (图同构重建) 重跑
-协议与 baseline_gnn.ipynb / build_3dgcn.py 一致: 5×384d, LayerNorm残差, 金属中心池化,
-bs=512, torch.compile, 200 ep 早停40, 余弦重启, seed 42 单模型
-划分: tr = fold0_train(51,214), va = fold0_val(25,607), te = te_idx(13,556)
-输出 baseline_results_new.json
+"""GCN/GIN/3D-GCN baselines — new domain (graph-isomorphism rebuild), re-run
+Protocol identical to baseline_gnn.ipynb / build_3dgcn.py: 5×384d, LayerNorm residual, metal-center pooling,
+bs=512, torch.compile, 200 ep with early stopping at 40, cosine restarts, seed 42 single model
+Split: tr = fold0_train(51,214), va = fold0_val(25,607), te = te_idx(13,556)
+Outputs baseline_results_new.json
 """
 import os, sys, time, json
 import numpy as np, torch, torch.nn as nn, torch.optim as optim
@@ -25,7 +25,7 @@ targets = ["gap","homo","lumo","dipole","metal_charge","E_elec","E_disp","polari
 N_TARGETS = len(targets)
 HIDDEN = 384; N_LAYERS = 5; DROPOUT = 0.10
 
-# ---------- 数据 ----------
+# ---------- Data ----------
 DATA = torch.load('new_domain_iso.pt', map_location='cpu', weights_only=False)
 N = DATA['y_all'].size(0)
 y_all = DATA['y_all'].float()
@@ -49,7 +49,7 @@ def build_graphs(node3=False):
         graphs.append({'x': x, 'edge_index': DATA['ei_ls'][i]})
     return graphs
 
-# ---------- 模型 ----------
+# ---------- Model ----------
 def scatter_mean_per_graph(h, batch, n):
     out = torch.zeros(n, h.size(1), device=h.device, dtype=h.dtype)
     out.scatter_add_(0, batch.unsqueeze(-1).expand_as(h), h)
@@ -115,7 +115,7 @@ class BaselineGNN(nn.Module):
         mf = scatter_mean_per_graph(h[mm], batch[mm], n_graphs) if mm.any() else torch.zeros(n_graphs, h.size(1), device=h.device, dtype=h.dtype)
         return self.readout(torch.cat([mean_h, max_h, mf], dim=1))
 
-# ---------- 训练 ----------
+# ---------- Training ----------
 y_all_gpu = y_all.to(device)
 transfer_stream = torch.cuda.Stream()
 

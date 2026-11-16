@@ -1,28 +1,28 @@
 # -*- coding: utf-8 -*-
-"""DimeNet++ 受控基线 — 数据预处理 (在服务器上运行)
+"""DimeNet++ controlled baseline — data preprocessing (run on the server)
 
-解析逻辑与 3D GAT 管线 (tmQM_Fe_XYZ / 3D_GCN / build_ensemble 共用) 逐行对齐:
-  - xyz 块级遍历: mol_idx 对每个块 +1 (含非 TM 块), csv_idx = 块序号 (0 起, 与 df_y 行对齐)
-  - 保留条件 (论文掩码, 逐条复刻): 含 TM 且 >1 原子 → SMILES 非空且可解析 → 8 目标全有限
-  - 域对齐: 论文主域 90,317 = 原始 tmQM 文件 (102,077 TM) 保留序列的前 90,317 个 (截断)
-  - 划分: 训练/验证 = ensemble_split.npz 论文折0划分 (fold_0_train 51,180 / fold_0_val 25,590,
-          与论文 3D GAT 折0 同集); 测试集 = te_idx (13,547, 不变)
-  - 半径图: 每分子 r=5.0 Å, 每节点最多 32 近邻 (纯 numpy, 无需 torch_cluster)
-  - z-score: 8 性质, 训练集统计
-  - 3D 输入: tmQM 原始 DFT XYZ (与 3D GAT 训练同源)
+The parsing logic is aligned line by line with the 3D GAT pipeline (shared by tmQM_Fe_XYZ / 3D_GCN / build_ensemble):
+  - xyz block-level traversal: mol_idx +1 for every block (including non-TM blocks), csv_idx = block index (0-based, aligned with df_y rows)
+  - retention condition (paper mask, reproduced item by item): contains TM and >1 atom → SMILES non-empty and parseable → all 8 targets finite
+  - domain alignment: paper main domain 90,317 = the first 90,317 of the retained sequence of the original tmQM file (102,077 TM) (truncated)
+  - split: train/val = ensemble_split.npz paper fold 0 split (fold_0_train 51,180 / fold_0_val 25,590,
+          the same set as paper 3D GAT fold 0); test set = te_idx (13,547, unchanged)
+  - radius graph: r=5.0 Å per molecule, at most 32 neighbours per node (pure numpy, no torch_cluster needed)
+  - z-score: 8 properties, training-set statistics
+  - 3D input: tmQM original DFT XYZ (same source as the 3D GAT training)
 
-⚠️ 数据版本: 服务器 /home/chen_jianqi/zw/ml/chem_ml5/ 下的原始 tmQM 文件
-(102,077 TM 块, 7月18 笔记本锚点 Total 102077 TM / Built 95,152) 就是论文主域的母本;
-8月2-4 主实验用的 96,984-TM xyz 是从它删块派生的, 保留序列前 90,317 个逐位一致
-(证据: 本地 eval_smiles_gat.py 用本地原始文件 + te_idx 复现论文 0.932)。
-脚本自动截断到 90,317; 请在与 7月18/8月4 相同的 (tmqm) 环境里运行。
+⚠️ Data version: the original tmQM files under /home/chen_jianqi/zw/ml/chem_ml5/ on the server
+(102,077 TM blocks, 18 July notebook anchor Total 102077 TM / Built 95,152) are the parent copy of the paper main domain;
+the 96,984-TM xyz used in the 2-4 August main experiments was derived from it by deleting blocks, and the first 90,317 of the retained
+sequence are bit-for-bit identical (evidence: local eval_smiles_gat.py reproduces the paper's 0.932 using the local original file + te_idx).
+The script truncates to 90,317 automatically; run it in the same (tmqm) environment as 18 July / 4 August.
 
-输出: dimenet_data.npz  (z/pos/edge_index/y 按 train/val/test 分片 + 划分索引 + 标准化统计)
-依赖: numpy pandas scipy rdkit (不需要 torch)
+Output: dimenet_data.npz  (z/pos/edge_index/y sharded by train/val/test + split indices + normalisation statistics)
+Dependencies: numpy pandas scipy rdkit (torch not required)
 """
 import os, sys, gzip, time
 try:
-    sys.stdout.reconfigure(encoding='utf-8')  # Windows GBK 控制台兜底; Linux 无害
+    sys.stdout.reconfigure(encoding='utf-8')  # Fallback for the Windows GBK console; harmless on Linux
 except Exception:
     pass
 import numpy as np
@@ -31,11 +31,11 @@ from rdkit import Chem
 from rdkit import RDLogger
 RDLogger.logger().setLevel(RDLogger.ERROR)
 
-# ============ 可配置项 ============
-CUTOFF = 5.0            # DimeNet++ 默认截断
-MAX_NEIGHBORS = 32      # DimeNet++ 默认近邻上限
-# 划分: ensemble_split.npz 论文折0 (fold_0_train 51,180 / fold_0_val 25,590) + te_idx 13,547
-# — 与论文 3D GAT 折0 同训练/验证集 (30k 抽样方案已弃: 首轮 30k 无正则严重过拟合, val R2≈0.09)
+# ============ Configurable options ============
+CUTOFF = 5.0            # DimeNet++ default cutoff
+MAX_NEIGHBORS = 32      # DimeNet++ default neighbour cap
+# Split: ensemble_split.npz paper fold 0 (fold_0_train 51,180 / fold_0_val 25,590) + te_idx 13,547
+# — the same train/val sets as paper 3D GAT fold 0 (the 30k sampling scheme was abandoned: the first-round 30k without regularisation overfitted severely, val R2≈0.09)
 # ================================
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -44,9 +44,9 @@ REQUIRED_FILES = ['tmQM_y.csv', 'ensemble_split.npz',
                   'tmQM_X1.xyz.gz', 'tmQM_X2.xyz.gz', 'tmQM_X3.xyz.gz']
 
 def resolve_data_dir():
-    """数据目录: 命令行第 1 个参数 > 脚本父目录 (chem_ml5 内旧布局) > 父目录旁的 chem_ml5
-    (脚本与 chem_ml5 平级, 如服务器 /home/.../zw/ml/dimenetpp_baseline/ + 数据在 /home/.../zw/ml/chem_ml5/)
-    > 本机 data_tmQM/paper_domain_vA。要求 5 个文件同目录; 找不到则 SystemExit 并给出明确指引。"""
+    """Data directory: 1st command-line argument > parent directory of the script (old layout inside chem_ml5) > chem_ml5 beside the parent
+    (script at the same level as chem_ml5, e.g. server /home/.../zw/ml/dimenetpp_baseline/ + data in /home/.../zw/ml/chem_ml5/)
+    > local data_tmQM/paper_domain_vA. Requires all 5 files in the same directory; if not found, SystemExit with clear guidance."""
     cands = []
     if len(sys.argv) > 1:
         cands.append(sys.argv[1])
@@ -58,17 +58,17 @@ def resolve_data_dir():
         if all(os.path.exists(os.path.join(d, f)) for f in REQUIRED_FILES):
             return d
     raise SystemExit(
-        '未找到完整数据文件, 已检查:\n  ' + '\n  '.join(os.path.normpath(c) for c in cands) +
-        '\n需要同目录下: ' + ', '.join(REQUIRED_FILES) +
-        '\n数据文件直接用服务器 /home/chen_jianqi/zw/ml/chem_ml5/ 下的原始 tmQM 文件'
-        ' (102,077 TM 版本, 保留序列截断到前 90,317 个 = 论文主域);'
-        '\n或用第 1 个参数指定数据目录, 例如: python preprocess_dimenet.py /home/chen_jianqi/zw/ml/chem_ml5')
+        'Complete data files not found, checked:\n  ' + '\n  '.join(os.path.normpath(c) for c in cands) +
+        '\nRequired in the same directory: ' + ', '.join(REQUIRED_FILES) +
+        '\nUse the original tmQM files under /home/chen_jianqi/zw/ml/chem_ml5/ on the server directly'
+        ' (102,077 TM version, retained sequence truncated to the first 90,317 = paper main domain);'
+        '\nor specify the data directory with the 1st argument, e.g.: python preprocess_dimenet.py /home/chen_jianqi/zw/ml/chem_ml5')
 
 DATA_DIR = resolve_data_dir()
-print(f'数据目录: {DATA_DIR}', flush=True)
+print(f'Data directory: {DATA_DIR}', flush=True)
 t0 = time.time()
 
-# ===== 与 build_ensemble.py Cell 3 逐行对齐: 元素表 / TM 判定 =====
+# ===== Line-by-line aligned with build_ensemble.py Cell 3: element table / TM test =====
 def atom_to_z(sym):
     tbl = {"H":1,"He":2,"Li":3,"Be":4,"B":5,"C":6,"N":7,"O":8,"F":9,"Ne":10,
            "Na":11,"Mg":12,"Al":13,"Si":14,"P":15,"S":16,"Cl":17,"Ar":18,
@@ -82,7 +82,7 @@ def is_TM(z):
     return z in [21,22,23,24,25,26,27,28,29,30,39,40,41,42,43,44,45,46,47,48,
                  72,73,74,75,76,77,78,79,80]
 
-# ===== XYZ 解析 (复刻 build_ensemble.parse_one, 略去 BO 矩阵) =====
+# ===== XYZ parsing (reproduces build_ensemble.parse_one, BO matrix omitted) =====
 def parse_one(xyz_p, start_idx=0):
     mols, labels = [], []
     with gzip.open(os.path.join(DATA_DIR, xyz_p), "rt") as f:
@@ -95,7 +95,7 @@ def parse_one(xyz_p, start_idx=0):
         if len(parts) == 1 and parts[0].isdigit():
             n_atoms = int(parts[0])
             if i >= len(xyz_blocks): break
-            i += 1  # 注释行
+            i += 1  # comment line
             atoms, coords = [], []
             for _ in range(n_atoms):
                 if i >= len(xyz_blocks): break
@@ -107,14 +107,14 @@ def parse_one(xyz_p, start_idx=0):
                         coords.append([float(x) for x in cparts[1:4]])
                         atoms.append(z)
                     except ValueError: continue
-            mol_idx += 1                      # 每个块 +1, 含非 TM 块 (与论文一致)
+            mol_idx += 1                      # +1 per block, including non-TM blocks (consistent with the paper)
             if not any(is_TM(z) for z in atoms) or len(atoms) <= 1: continue
             mols.append({"atoms": atoms, "coords": np.array(coords, dtype=np.float32),
                          "csv_idx": mol_idx})
             labels.append(df_y.iloc[mol_idx][targets].astype(float).values)
     return mols, labels
 
-# ===== 标签 =====
+# ===== Labels =====
 df_y = pd.read_csv(os.path.join(DATA_DIR, 'tmQM_y.csv'), sep=';')
 df_y = df_y.rename(columns={'HL_Gap': 'gap', 'HOMO_Energy': 'homo', 'LUMO_Energy': 'lumo',
                             'Dipole_M': 'dipole', 'Metal_q': 'metal_charge',
@@ -130,11 +130,11 @@ for part in [1, 2, 3]:
     print(f'  Part {part}: {len(m)} TM complexes', flush=True)
 print(f'Total parsed: {len(all_m)} TM complexes  ({time.time()-t0:.0f}s)', flush=True)
 
-# ===== 论文 90,317 掩码: SMILES 非空且可解析 + y 全有限 =====
-# 论文主域的 90,317 建图集合 = 原始 tmQM 文件 (102,077 TM 块) 解析保留序列的前 90,317 个。
-# 8月2-4 主实验用的 xyz 是从原始文件删块派生 (96,984 TM 块), 其保留序列与原始文件保留序列
-# 的前 90,317 个逐位一致 — 证据: 本地 eval_smiles_gat.py 用本地原始文件 + te_idx 重推
-# SMILES 检查点得到 0.932, 与论文定稿数字完全一致。
+# ===== Paper 90,317 mask: SMILES non-empty and parseable + all y finite =====
+# The 90,317 graph-building set of the paper main domain = the first 90,317 of the parse-retained sequence of the original tmQM file (102,077 TM blocks).
+# The xyz used in the 2-4 August main experiments was derived from the original file by deleting blocks (96,984 TM blocks); its retained sequence is
+# bit-for-bit identical to the first 90,317 of the original file's retained sequence — evidence: local eval_smiles_gat.py re-runs the
+# SMILES checkpoint using the local original file + te_idx and obtains 0.932, exactly matching the final paper number.
 kept_z, kept_pos, kept_y, kept_tmpos = [], [], [], []
 n_failed_smiles, n_nan = 0, 0
 for tm_pos, (m, y) in enumerate(zip(all_m, all_l), start=1):
@@ -149,33 +149,33 @@ for tm_pos, (m, y) in enumerate(zip(all_m, all_l), start=1):
     kept_y.append(y)
     kept_tmpos.append(tm_pos)
 
-print(f'解析保留: {len(kept_z)}  (SMILES 失败 {n_failed_smiles}, NaN {n_nan})  ({time.time()-t0:.0f}s)', flush=True)
-# --- 与论文主域 (90,317) 对齐 ---
-# 原始文件锚点 (7月18 服务器 tmQM_Fe_XYZ.ipynb): Total 102077 TM / Built 95,152 (6925 failed)
-# 截断锚点 (2026-08-28 服务器实测): 第 90,317 个保留分子的 TM 块序号 = 97,045
+print(f'Parse-retained: {len(kept_z)}  (SMILES failures {n_failed_smiles}, NaN {n_nan})  ({time.time()-t0:.0f}s)', flush=True)
+# --- Align with the paper main domain (90,317) ---
+# Original-file anchors (18 July server tmQM_Fe_XYZ.ipynb): Total 102077 TM / Built 95,152 (6925 failed)
+# Truncation anchor (measured on the server, 2026-08-28): TM block index of the 90,317th retained molecule = 97,045
 SERVER_TM = 102077
 SERVER_KEPT = 95152
 SERVER_ANCHOR_TMPOS = 97045
 if len(kept_z) == 90317:
-    print('[verify] OK: 保留数恰为 90,317 — 与 ensemble_split.npz 直接对齐', flush=True)
+    print('[verify] OK: retained count is exactly 90,317 — directly aligned with ensemble_split.npz', flush=True)
 elif len(kept_z) > 90317:
-    print(f'[verify] 保留 {len(kept_z)} > 90,317; 前缀截断 (论文主域 = 原始文件保留序列的前 90,317 个)。'
-          f'第 90,317 个保留分子的 TM 块序号 = {kept_tmpos[90316]} (期望 {SERVER_ANCHOR_TMPOS})', flush=True)
+    print(f'[verify] retained {len(kept_z)} > 90,317; truncating to the prefix (paper main domain = the first 90,317 of the original file retained sequence). '
+          f'TM block index of the 90,317th retained molecule = {kept_tmpos[90316]} (expected {SERVER_ANCHOR_TMPOS})', flush=True)
     assert len(all_m) == SERVER_TM and len(kept_z) == SERVER_KEPT and kept_tmpos[90316] == SERVER_ANCHOR_TMPOS, (
-        f'数据/环境与论文主域母本不一致: TM 总数 {len(all_m)} (期望 {SERVER_TM}), '
-        f'保留 {len(kept_z)} (期望 {SERVER_KEPT}), 锚点 TM 块序号 {kept_tmpos[90316]} (期望 {SERVER_ANCHOR_TMPOS})。\n'
-        f'若差异仅为个位数, 大概率是 rdkit 版本差异 (本机 rdkit2024 与服务器约差 19 个分子的解析结果); '
-        f'请在与 7月18/8月4 服务器运行相同的 (tmqm) 环境里重跑。\n'
-        f'数据文件直接用服务器 /home/chen_jianqi/zw/ml/chem_ml5/ 下的 tmQM_X*.xyz.gz + tmQM_y.csv。')
+        f'Data/environment inconsistent with the paper main-domain parent copy: total TM {len(all_m)} (expected {SERVER_TM}), '
+        f'retained {len(kept_z)} (expected {SERVER_KEPT}), anchor TM block index {kept_tmpos[90316]} (expected {SERVER_ANCHOR_TMPOS}).\n'
+        f'If the difference is only a single digit, it is most likely an rdkit version difference (local rdkit2024 differs from the server by about 19 molecules of parsing results); '
+        f'please re-run in the same (tmqm) environment as the 18 July / 4 August server runs.\n'
+        f'Use the tmQM_X*.xyz.gz + tmQM_y.csv under /home/chen_jianqi/zw/ml/chem_ml5/ on the server directly.')
     kept_z = kept_z[:90317]
     kept_pos = kept_pos[:90317]
     kept_y = kept_y[:90317]
-    print('[verify] OK: 前缀截断后集合规模 = 90,317 (论文建图集合)', flush=True)
+    print('[verify] OK: set size after prefix truncation = 90,317 (paper graph-building set)', flush=True)
 else:
-    raise RuntimeError(f'保留数 {len(kept_z)} < 90,317 — 数据文件不完整或版本错误。')
+    raise RuntimeError(f'retained count {len(kept_z)} < 90,317 — data files incomplete or wrong version.')
 
-# ===== 划分对齐: ensemble_split.npz 索引即相对此 90,317 序列 =====
-# 训练/验证直接用论文折0划分 (与 3D GAT 折0 同集), 测试集 te_idx 13,547 不变
+# ===== Split alignment: ensemble_split.npz indices are relative to this 90,317 sequence =====
+# Train/val use the paper fold 0 split directly (same set as 3D GAT fold 0); the test set te_idx 13,547 is unchanged
 split = np.load(os.path.join(DATA_DIR, 'ensemble_split.npz'))
 te_idx = split['te_idx'].astype(np.int64)
 train_sel = split['fold_0_train'].astype(np.int64)
@@ -183,15 +183,15 @@ val_sel = split['fold_0_val'].astype(np.int64)
 test_sel = te_idx
 assert te_idx.max() < len(kept_z) and train_sel.max() < len(kept_z) and val_sel.max() < len(kept_z)
 assert len(train_sel) == 51180 and len(val_sel) == 25590, (
-    f'fold_0 划分规模异常: train {len(train_sel)} (期望 51,180) / val {len(val_sel)} (期望 25,590)')
-print(f'Train {len(train_sel)} / Val {len(val_sel)} / Test {len(test_sel)} (论文折0划分, te_idx 不变)', flush=True)
-print('[verify] OK: 训练/验证 = 论文 3D GAT 折0 同集 (51,180/25,590); 测试集 = 13,547', flush=True)
+    f'abnormal fold_0 split size: train {len(train_sel)} (expected 51,180) / val {len(val_sel)} (expected 25,590)')
+print(f'Train {len(train_sel)} / Val {len(val_sel)} / Test {len(test_sel)} (paper fold 0 split, te_idx unchanged)', flush=True)
+print('[verify] OK: train/val = same sets as paper 3D GAT fold 0 (51,180/25,590); test set = 13,547', flush=True)
 
 y_all = np.array(kept_y, dtype=np.float32)
 y_mean = y_all[train_sel].mean(axis=0).astype(np.float32)
 y_std = (y_all[train_sel].std(axis=0) + 1e-8).astype(np.float32)
 
-# ===== 半径图 (纯 numpy: r=CUTOFF, 每节点最多 MAX_NEIGHBORS 个近邻, 与 PyG radius_graph 一致) =====
+# ===== Radius graph (pure numpy: r=CUTOFF, at most MAX_NEIGHBORS neighbours per node, consistent with PyG radius_graph) =====
 def radius_graph_np(pos, r, max_n):
     n = pos.shape[0]
     d = np.linalg.norm(pos[:, None, :] - pos[None, :, :], axis=-1)
@@ -221,10 +221,10 @@ def build_split(sel, tag):
         else:
             n_iso += 1
         z_arr[k] = z; pos_arr[k] = pos; ei_arr[k] = ei
-    print(f'  [{tag}] {len(sel)} 分子; z=0 原子分子数 = {n_z0}; 含孤立节点分子数 = {n_iso}', flush=True)
+    print(f'  [{tag}] {len(sel)} molecules; molecules with z=0 atoms = {n_z0}; molecules with isolated nodes = {n_iso}', flush=True)
     return z_arr, pos_arr, ei_arr
 
-print('构建半径图 (仅 train/val/test 所需分子)...', flush=True)
+print('Building radius graphs (only the molecules needed for train/val/test)...', flush=True)
 z_tr, pos_tr, ei_tr = build_split(train_sel, 'train')
 z_va, pos_va, ei_va = build_split(val_sel, 'val')
 z_te, pos_te, ei_te = build_split(test_sel, 'test')
@@ -239,4 +239,4 @@ np.savez_compressed(
     cutoff=CUTOFF, max_neighbors=MAX_NEIGHBORS, train_n=len(train_sel), val_n=len(val_sel),
 )
 print(f'saved: dimenet_data.npz  ({time.time()-t0:.0f}s total)', flush=True)
-print(f'[verify] 集合规模 = 90,317 | 测试集 = {len(test_sel)} | 训练/验证 = {len(train_sel)}/{len(val_sel)}', flush=True)
+print(f'[verify] set size = 90,317 | test set = {len(test_sel)} | train/val = {len(train_sel)}/{len(val_sel)}', flush=True)

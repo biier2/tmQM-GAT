@@ -10,18 +10,18 @@ def add_code(src, cid):
 def add_md(src, cid):
     cells.append({"cell_type": "markdown", "metadata": {}, "source": src.split('\n'), "id": cid})
 
-add_md("""# XYZ GNN 消融实验 (全量95k, 5项)
+add_md("""# XYZ GNN ablation study (full 95k, 5 items)
 
-| ID | 变量 | 对照 | 实验组 | 核心问题 |
+| ID | Variable | Control | Experimental group | Core question |
 |----|------|------|--------|---------|
-| A | 金属池化 | on | off | 金属单独readout是否必要? |
-| B | 注意力头数 | 8头 | 12头 | 多头是否过度参数化? |
-| C | 金属加权 | 等权 | 反频率 | 稀有金属加权是否有效? |
-| D | DFT边特征 | 23-dim | 6-dim (SMILES only) | 3D距离+BO对dipole的提升? |
-| E | RBF分辨率 | 16 RBF (23-dim) | 8 RBF (15-dim) | 距离编码细度的影响? |
-| F | Mayer BO消融 | node 11d+edge 23d | node 8d+edge 22d | BO独立贡献(保留16 RBF)? |
+| A | Metal pooling | on | off | Is a separate metal readout necessary? |
+| B | Number of attention heads | 8 heads | 12 heads | Are multiple heads over-parameterized? |
+| C | Metal weighting | equal weight | inverse frequency | Does rare-metal weighting work? |
+| D | DFT edge features | 23-dim | 6-dim (SMILES only) | Gain of 3D distances + BO for dipole? |
+| E | RBF resolution | 16 RBF (23-dim) | 8 RBF (15-dim) | Effect of distance-encoding granularity? |
+| F | Mayer BO ablation | node 11d+edge 23d | node 8d+edge 22d | Independent contribution of BO (keeping 16 RBF)? |
 
-每实验约1h。5070 Ti 总计 ~6h。""", "eq_intro")
+Each experiment takes about 1 h. 5070 Ti, ~6 h in total.""", "eq_intro")
 
 add_code("""import numpy as np, pandas as pd, time, json, os, sys, gzip
 import torch, torch.nn as nn, torch.optim as optim
@@ -36,7 +36,7 @@ from sklearn.metrics import r2_score
 from tqdm import tqdm
 from rdkit import Chem; from rdkit import RDLogger; RDLogger.logger().setLevel(RDLogger.ERROR)
 
-# ===== 数据加载 (复用tmQM_Fe_XYZ的Cell 2-5逻辑) =====
+# ===== Data loading (reuses the Cell 2-5 logic of tmQM_Fe_XYZ) =====
 df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')
 df_y = df_y.rename(columns={'HL_Gap':'gap','HOMO_Energy':'homo','LUMO_Energy':'lumo',
     'Dipole_M':'dipole','Metal_q':'metal_charge','Electronic_E':'E_elec',
@@ -127,12 +127,12 @@ def fast_match(sm_atoms, xyz_atoms):
 
 rbf_c=np.linspace(1.0,5.0,16); rbf_sigma=0.2
 smiles_by_idx=df_y['SMILES'].tolist()
-# === OOM防护: 30k采样 (95k全量会触发cgroup内存限制) ===
+# === OOM guard: 30k sample (the full 95k would trigger the cgroup memory limit) ===
 N_SAMPLE = 30000
 rng = np.random.RandomState(42)
 perm = rng.permutation(len(fe_cmplx))[:N_SAMPLE]
 fe_cmplx = [fe_cmplx[i] for i in perm]
-y_fe = y_fe[perm]  # 同步采样 — 图和目标值对齐!
+y_fe = y_fe[perm]  # sampled in sync — graphs and target values stay aligned!
 is_Fe = np.array(is_Fe, dtype=np.float32)[perm].tolist()
 print(f'Building graphs (sampled {N_SAMPLE:,} complexes for memory safety)...')
 graphs, y_vals, is_Fe_filt, atoms_filt, failed = [], [], [], [], 0
@@ -265,9 +265,9 @@ class AblationXYZ(nn.Module):
     def forward(self, g, batch=None):
         x, ei, ea = g['x'], g['edge_index'], g.get('edge_attr', None)
         if self.node_dim < x.size(1):
-            x = x[:, :self.node_dim]  # 消融: 只用前node_dim维节点特征
+            x = x[:, :self.node_dim]  # ablation: keep only the first node_dim node features
         if ea is not None and ea.size(0) > 0 and self.edge_dim < ea.size(1):
-            ea = ea[:, :self.edge_dim]  # 消融: 只用前edge_dim维边特征
+            ea = ea[:, :self.edge_dim]  # ablation: keep only the first edge_dim edge features
         h = self.embed(x)
         for conv, norm in zip(self.convs, self.norms): h = norm(h + conv(h, ei, ea)); h = self.drop(h)
         if batch is None:

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""§3.7 Case Study 重跑: 18 催化剂 × 新 A/D 变体集成 (9 模型均±std)
-3D 路径 = ETKDG+MMFF (AddHs→Embed(42,200)→MMFF→RemoveHs) + WBO 全零 (部署约定)
-DFT 参考 = Table 4 原值 (10 个已验证络合物, TPSSh/def2-SVP)
-输出 case_study_new_results.json (供 Table 4 重建 + Fig7 重渲)
+"""§3.7 Case Study re-run: 18 catalysts × new A/D variant ensembles (9-model mean ± std)
+3D path = ETKDG+MMFF (AddHs→Embed(42,200)→MMFF→RemoveHs) + all-zero WBO (deployment convention)
+DFT reference = original Table 4 values (10 validated complexes, TPSSh/def2-SVP)
+Outputs case_study_new_results.json (for Table 4 rebuild + Fig7 re-render)
 """
 import os, sys, json, warnings
 warnings.filterwarnings('ignore')
@@ -94,7 +94,7 @@ class XYZ_GNN(nn.Module):
         mf = scatter_mean_per_graph(h[mm], batch[mm], n_graphs) if mm.any() else torch.zeros(n_graphs, h.size(1), device=h.device, dtype=h.dtype)
         return self.readout(torch.cat([mean_h, max_h, mf], dim=1))
 
-# ---------- 图构建 ----------
+# ---------- Graph construction ----------
 ELEMENT_DATA_SM = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),44:(5,8),45:(5,9),46:(5,10),47:(5,11),48:(5,12),53:(5,17),72:(6,4),73:(6,5),74:(6,6),75:(6,7),76:(6,8),77:(6,9),78:(6,10),79:(6,11),80:(6,12)}
 BOND_TYPES_SM = [1,2,3,12]; B2I_SM = {b:i for i,b in enumerate(BOND_TYPES_SM)}; N_BT_SM = 4
 rbf_c = np.linspace(1.0, 5.0, 16).astype(np.float32); rbf_sigma = 0.2
@@ -123,8 +123,8 @@ def smiles_graph(smiles):
     return {'x': x, 'edge_index': ei, 'edge_attr': ea}
 
 def smiles_to_3d_graph(smiles):
-    """ETKDG+MMFF → B 变体部署图 (8d 节点 + 22d 边 = 6 拓扑 + 16 RBF, 无任何 WBO)
-    意见2(a): 部署一致对照 — 训练/推断均无 WBO, 避免零化引起的分布偏移"""
+    """ETKDG+MMFF → B-variant deployment graph (8d nodes + 22d edges = 6 topology + 16 RBF, no WBO at all)
+    Reviewer comment 2(a): deployment-consistent control — no WBO in either training or inference, avoiding the distribution shift induced by zeroing"""
     mol = Chem.MolFromSmiles(smiles)
     if mol is None: return None
     mol_h = Chem.AddHs(mol)
@@ -191,7 +191,7 @@ CANDIDATES = {
     'Ni(IMes)2Cl2':       'Cl[Ni](Cl)([C]1N(c2c(C)cc(C)cc2C)C=CN1c3c(C)cc(C)cc3C)[C]4N(c5c(C)cc(C)cc5C)C=CN4c6c(C)cc(C)cc6C',
     'Pt(dppe)Cl2':        'Cl[Pt](Cl)([P](c1ccccc1)(c2ccccc2)CC[P](c3ccccc3)(c4ccccc4))',
 }
-# Table 4 的 DFT 参考 (gap eV, dipole D) — 10 个已验证
+# DFT reference for Table 4 (gap eV, dipole D) — 10 validated
 DFT = {
     'Zr-cat3': (3.30, 5.32), 'Fe-cat1': (2.76, 9.76), 'Ni-cat3': (1.39, 5.67),
     'Pd-cat2': (2.93, 2.48), 'trans-PdCl2(PPh3)2': (3.19, 0.03), 'cis-PdCl2(PPh3)2': (3.17, 10.86),
@@ -203,26 +203,26 @@ rows = {}
 for name, smi in CANDIDATES.items():
     g_sm = smiles_graph(smi)
     if g_sm is None:
-        print(f'  {name}: SMILES 解析失败'); continue
+        print(f'  {name}: SMILES parsing failed'); continue
     sm_mean, sm_std = predict_ensemble('ensemble_checkpoint_A_8d6d.pt', 8, 6, g_sm)
     g_3d = smiles_to_3d_graph(smi)
     if g_3d is None:
-        print(f'  {name}: ETKDG 失败, 3D 通道无预测')
+        print(f'  {name}: ETKDG failed, no prediction from the 3D channel')
         d3_mean = d3_std = None
     else:
         d3_mean, d3_std = predict_ensemble('ensemble_checkpoint_B_8d22d.pt', 8, 22, g_3d)
     rows[name] = {'smiles_mean': sm_mean.tolist(), 'smiles_std': sm_std.tolist(),
                   'd3_mean': (d3_mean.tolist() if d3_mean is not None else None),
                   'd3_std': (d3_std.tolist() if d3_std is not None else None)}
-    # gap eV (Ha*27.211386), dipole 非负截断
+    # gap eV (Ha*27.211386), dipole clipped to non-negative
     sm_gap_ev = sm_mean[0] * EV_PER_HA; sm_dip = max(0.0, sm_mean[3])
     if d3_mean is not None:
         d3_gap_ev = d3_mean[0] * EV_PER_HA; d3_dip = max(0.0, d3_mean[3])
         print(f'  {name}: gap 3D={d3_gap_ev:.2f}/SM={sm_gap_ev:.2f} eV, dipole 3D={d3_dip:.2f}/SM={sm_dip:.2f} D', flush=True)
     else:
-        print(f'  {name}: gap SM={sm_gap_ev:.2f} eV, dipole SM={sm_dip:.2f} D (无3D)', flush=True)
+        print(f'  {name}: gap SM={sm_gap_ev:.2f} eV, dipole SM={sm_dip:.2f} D (no 3D)', flush=True)
 
-# MAE 统计 (10 个 DFT 验证)
+# MAE statistics (10 DFT-validated)
 for model_name, key in [('3D', 'd3_mean'), ('SMILES', 'smiles_mean')]:
     gap_errs, dip_errs = [], []
     for name, (g_dft, d_dft) in DFT.items():

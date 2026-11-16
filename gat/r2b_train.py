@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-"""R2b: 全尺度消融 — 第二步: 训练 (服务器 GPU, 5070 Ti)
-读 r2b_graphs.pt (全量 ~90k 图, 23d/11d 完整特征)
-变体 (node_dim/edge_dim 截断, 建图只做一次):
-  V1_ctrl_3Dfull: node 11d / edge 23d   (完整 3D 特征 = 3D GAT 单模型配置)
-  V2_SMILES:      node  8d / edge  6d   (纯 SMILES)
-  V3_SMILES_BO:   node 11d / edge  6d   (SMILES 边 + TPSSh BO 节点增广)
-协议: 论文同款 12头×32d×5层, 划分 RandomState(42) 70/15/15, 3 seeds [42,123,456]
-断点续跑: 已完成的 (variant, seed) 自动跳过
-输出: r2b_results.json — per-variant per-seed per-prop R²/MAE
+"""R2b: full-scale ablation — step 2: training (server GPU, 5070 Ti)
+Reads r2b_graphs.pt (full ~90k graphs, 23d/11d full features)
+Variants (node_dim/edge_dim truncation, graph construction done only once):
+  V1_ctrl_3Dfull: node 11d / edge 23d   (full 3D features = 3D GAT single-model configuration)
+  V2_SMILES:      node  8d / edge  6d   (SMILES only)
+  V3_SMILES_BO:   node 11d / edge  6d   (SMILES edges + TPSSh BO node augmentation)
+Protocol: same as the manuscript, 12 heads×32d×5 layers, split RandomState(42) 70/15/15, 3 seeds [42,123,456]
+Resume: completed (variant, seed) pairs are skipped automatically
+Output: r2b_results.json — per-variant per-seed per-prop R²/MAE
 """
 import json, os, sys
 import numpy as np
@@ -34,11 +34,11 @@ SEEDS = [42, 123, 456]
 VARIANTS = {'V1_ctrl_3Dfull': (11, 23), 'V2_SMILES': (8, 6), 'V3_SMILES_BO': (11, 6)}
 OUT_JSON = 'r2b_results.json'
 
-# ---------- 数据 (图驻留 CPU, batch 搬 GPU — 避免 95k 全量预载内存) ----------
+# ---------- Data (graphs resident on CPU, batches moved to GPU — avoids preloading the full 95k into memory) ----------
 data = torch.load('r2b_graphs.pt', weights_only=False)
 graphs = data['graphs']
 y_all = data['y_all']
-print(f'加载 {len(graphs):,} 图', flush=True)
+print(f'Loaded {len(graphs):,} graphs', flush=True)
 
 idx = np.random.RandomState(42).permutation(len(graphs))
 n_tr = int(len(graphs) * 0.7); n_va = int(len(graphs) * 0.15)
@@ -47,7 +47,7 @@ print(f'Train {n_tr} / Val {n_va} / Test {len(te_idx)}', flush=True)
 y_mean = y_all.mean(0); y_std = y_all.std(0).clamp(min=1e-8)
 y_norm = (y_all - y_mean) / y_std
 
-# ---------- 模型 (论文 AblationXYZ, node/edge 截断实现变体) ----------
+# ---------- Model (manuscript AblationXYZ, node/edge truncation realises the variants) ----------
 def segment_softmax(scores, dst, N):
     scores_f32 = scores.float()
     max_v = torch.full((N, scores_f32.size(1)), float('-inf'), device=scores_f32.device, dtype=torch.float32)
@@ -121,7 +121,7 @@ class AblGAT(nn.Module):
             mf = torch.zeros(n_graphs, h.size(1), device=h.device, dtype=h.dtype)
         return self.readout(torch.cat([mean_h, max_h, mf], dim=1))
 
-# ---------- 数据管道: numpy 向量化 collate + 多进程 ----------
+# ---------- Data pipeline: numpy-vectorised collate + multiprocessing ----------
 class GraphDataset(Dataset):
     def __init__(self, graphs):
         self.graphs = graphs
@@ -212,19 +212,19 @@ def train_eval(node_dim, edge_dim, seed):
     return {'r2': r2s, 'mae': maes, 'mean_r2': float(np.mean(r2s)),
             'params': sum(p.numel() for p in m.parameters())}
 
-# ---------- 主循环 (断点续跑) ----------
+# ---------- Main loop (resume) ----------
 results = {}
 if os.path.exists(OUT_JSON):
     with open(OUT_JSON) as f:
         results = json.load(f)
-    print(f'已有结果: {list(results.keys())}', flush=True)
+    print(f'existing results: {list(results.keys())}', flush=True)
 
 for vname, (nd, ed) in VARIANTS.items():
     results.setdefault(vname, {})
     for seed in SEEDS:
         k = str(seed)
         if k in results[vname]:
-            print(f'跳过 {vname}/seed{seed} (已完成)', flush=True)
+            print(f'skipping {vname}/seed{seed} (already done)', flush=True)
             continue
         print(f'\n===== {vname} (node {nd}d / edge {ed}d) seed {seed} =====', flush=True)
         r = train_eval(nd, ed, seed)
@@ -234,4 +234,4 @@ for vname, (nd, ed) in VARIANTS.items():
         with open(OUT_JSON, 'w') as f:
             json.dump(results, f, indent=2)
 
-print(f'\n全部完成 -> {OUT_JSON}')
+print(f'\nall done -> {OUT_JSON}')

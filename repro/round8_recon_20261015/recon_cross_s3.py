@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""只读：复算 SI 表 S3（cross protocol transfer）候选口径。
-npz（SMILES GAT 预测）逐性质算 Pearson/Spearman/MAE/slope/intercept/recal-MAE/raw R2，
-与 SI 印刷值（表 11/12）及 cross_dft_metrics.json 三方对照；并打印 7 个截距。"""
+"""Read-only: recompute the candidate definition of SI table S3 (cross-protocol transfer).
+For the npz (SMILES GAT predictions), compute Pearson/Spearman/MAE/slope/intercept/recal-MAE/raw R2 per property,
+cross-check against the SI printed values (tables 11/12) and cross_dft_metrics.json; and print the 7 intercepts."""
 import json
 import sys
 
@@ -14,7 +14,7 @@ NPZ = r'D:\ml\chem_ml5\cross_dft_predictions.npz'
 JSONP = r'D:\ml\chem_ml5\cross_dft_metrics.json'
 
 targets = ['gap', 'homo', 'lumo', 'dipole', 'E_elec', 'E_disp', 'polarizability']
-# SI 表 S3 印刷值（表 11 = Pearson/Spearman/Raw MAE；表 12 = Slope/In-sample MAE）
+# SI table S3 printed values (table 11 = Pearson/Spearman/Raw MAE; table 12 = Slope/In-sample MAE)
 SI = {
     'gap':            dict(p=0.877, rho=0.869, mae=0.0344, slope=0.935, recal=0.0114),
     'homo':           dict(p=0.963, rho=0.912, mae=0.0298, slope=0.981, recal=0.0097),
@@ -51,11 +51,11 @@ print()
 print('macro Pearson %.4f (SI 0.941) | macro Spearman %.4f (SI 0.933) | macro raw R2 %.4f (SI 0.58)'
       % (np.mean(pears), np.mean(spears), np.mean(r2s)))
 print()
-print('7 个截距（npz 复算）:')
+print('7 intercepts (recomputed from npz):')
 for p in targets:
     print('  %-15s %.6f' % (p, intercepts[p]))
 print()
-print('json 现值（cross_dft_metrics.json）:')
+print('current json values (cross_dft_metrics.json):')
 for e in json.load(open(JSONP, encoding='utf-8')):
     print('  %-15s P=%.4f rho=%.4f R2=%.4f MAE=%.4f Slope=%.4f Int=%.4f Recal=%.4f'
           % (e['Property'], e['Pearson_r'], e['Spearman_rho'], e['R2'], e['MAE'], e['Slope'], e['Intercept'], e['MAE_recal']))

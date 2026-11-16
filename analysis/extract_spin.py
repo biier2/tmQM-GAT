@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""R5: 从 data_tmQM/local_vB/tmQM_X1/X2/X3.xyz.gz 提取自旋态 (header 第二行 S = 字段)"""
+"""R5: extract spin states from data_tmQM/local_vB/tmQM_X1/X2/X3.xyz.gz (S = field on the second header line)"""
 import gzip, re, json, sys
 from collections import Counter
 
@@ -39,10 +39,10 @@ for fn in FILES:
 with open('d:/ml/chem_ml5/spin_map.json', 'w') as f:
     json.dump({'spin': spin_map, 'charge': charge_map}, f)
 
-print(f'总结构: {len(spin_map)}, 解析失败: {n_fail}')
+print(f'Total structures: {len(spin_map)}, parse failures: {n_fail}')
 c = Counter(spin_map.values())
 for k in sorted(c, key=lambda x: float(x)):
     print(f'  S={k}: {c[k]}')
-# 开壳层 = S > 0 (S=0 单重态为闭壳层; S=1/2 双重态起为开壳层)
+# open-shell = S > 0 (S=0 singlet is closed-shell; S=1/2 doublet and above are open-shell)
 open_shell = sum(v for k, v in c.items() if float(k) > 0)
-print(f'开壳层占比: {open_shell}/{len(spin_map)} = {open_shell/len(spin_map)*100:.2f}%')
+print(f'open-shell fraction: {open_shell}/{len(spin_map)} = {open_shell/len(spin_map)*100:.2f}%')

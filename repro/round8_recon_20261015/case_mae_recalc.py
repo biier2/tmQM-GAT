@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""只读：十例 DFT 案例的 subset MAE 重算（Ni-cat3 自旋改判级联用）。
+"""Read-only: recompute subset MAE for the ten DFT case studies (used for the Ni-cat3 spin reassignment cascade).
 
-预测（未圆整）= case_study_new_results.json 的 smiles_mean(A) / d3_mean(B)；
-DFT 参考（未圆整）= D:\\ml\\log 各日志：
-  - gap = 最终打印的 α（闭壳层）或 min(α,β)（开壳层）HOMO-LUMO gap（eV）
-  - dipole = 最后一处 "Tot=" （Debye）
-偶极 MAE 按正文口径：预测先 clip 负值到 0，参考不 clip。
-先复现现印值（All 10 / Closed 8 / 原五例三闭壳层 / 新五例），再给改判后集合。
+Predictions (unrounded) = smiles_mean(A) / d3_mean(B) of case_study_new_results.json;
+DFT reference (unrounded) = each log in D:\\ml\\log:
+  - gap = the final printed α (closed-shell) or min(α,β) (open-shell) HOMO-LUMO gap (eV)
+  - dipole = the last "Tot=" (Debye)
+Dipole MAE follows the main-text definition: predictions clip negative values to 0, references are not clipped.
+First reproduce the currently printed values (All 10 / Closed 8 / original five-case three closed-shell / new five-case), then give the post-reassignment set.
 """
 import os
 import re
@@ -55,7 +55,7 @@ for case, fn in CASES.items():
     ref_gap_ev[case] = min(gaps)
 
 j = json.load(open(r'D:\ml\chem_ml5\case_study_new_results.json', encoding='utf-8'))
-print('--- json 内置 MAE 字段（原分析自留）---')
+print('--- MAE fields stored in the json (kept from the original analysis) ---')
 print('__mae_3D    :', j.get('__mae_3D'))
 print('__mae_SMILES:', j.get('__mae_SMILES'))
 print()
@@ -72,13 +72,13 @@ ref_d = np.array([ref_dip[c] for c in names])
 subsets = {
     'All 10            ': names,
     'Closed 8 (current)': [c for c in names if c not in ('Fe-cat1', 'Co-cat1')],
-    'Closed 7 (改判后) ': [c for c in names if c not in ('Fe-cat1', 'Co-cat1', 'Ni-cat3')],
-    '原五例闭壳层(现=3)': ['Zr-cat3', 'Ni-cat3', 'Pd-cat2'],
-    '原五例闭壳层(新=2)': ['Zr-cat3', 'Pd-cat2'],
-    '新五例            ': ['cis-PdCl2(PPh3)2', 'trans-PdCl2(PPh3)2', 'Rh(CO)2(acac)', 'Ni(IMes)2Cl2', 'Pt(dppe)Cl2'],
+    'Closed 7 (reassigned)': [c for c in names if c not in ('Fe-cat1', 'Co-cat1', 'Ni-cat3')],
+    'Original 5 closed-shell (now=3)': ['Zr-cat3', 'Ni-cat3', 'Pd-cat2'],
+    'Original 5 closed-shell (new=2)': ['Zr-cat3', 'Pd-cat2'],
+    'New 5-case': ['cis-PdCl2(PPh3)2', 'trans-PdCl2(PPh3)2', 'Rh(CO)2(acac)', 'Ni(IMes)2Cl2', 'Pt(dppe)Cl2'],
 }
 
-print('--- subset MAE（预测 clip 负偶极；参考未圆整）---')
+print('--- subset MAE (predictions clip negative dipoles; references unrounded) ---')
 for s, cs in subsets.items():
     ii = [idx[c] for c in cs]
     ga = np.abs(A_gap_ha[ii] - ref_gap_ha[ii])
@@ -88,7 +88,7 @@ for s, cs in subsets.items():
     print('%s N=%2d | gap A %.4f eV (%.5f Ha) B %.4f eV (%.5f Ha) | dip A %.4f D B %.4f D'
           % (s, len(cs), ga.mean() * HA_EV, ga.mean(), gb.mean() * HA_EV, gb.mean(), da.mean(), db.mean()))
 print()
-print('--- 逐例明细 ---')
+print('--- Per-case details ---')
 for c in names:
     i = idx[c]
     print('%-20s ref_gap=%7.4f  ref_dip=%7.4f | A gap=%7.4f dip=%7.4f | B gap=%7.4f dip=%7.4f'

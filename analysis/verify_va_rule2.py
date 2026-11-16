@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""验证论文主域 90,317 保留规则 (第二版, 含 xyz 块级条件)
-链条推测: 108,541 → 100,849 (SMILES可解析) → 100,715 (含28元素TM表) → 90,317 (xyz 侧条件)
-按 CSD 码把块级信息 (块是否含TM / 块原子数 / 元素计数) 关联到 csv 行, 组合候选掩码,
-以 y_dom[te_idx] vs ep y_true 的不匹配行数打分 (≤19 行 = rdkit 解析差可解释, 0 行 = 全中)。
+"""Verify the 90,317 paper main-domain retention rule (second version, with xyz block-level conditions)
+Chain hypothesis: 108,541 → 100,849 (SMILES parseable) → 100,715 (28-element TM table) → 90,317 (xyz-side conditions)
+Link block-level information (whether the block contains TM / block atom count / element counts) to csv rows by CSD code, combine candidate masks,
+and score by the number of mismatching rows between y_dom[te_idx] and ep y_true (≤19 rows = explainable by rdkit parsing differences, 0 rows = complete match).
 """
 import sys, gzip
 sys.stdout.reconfigure(encoding='utf-8')
@@ -22,7 +22,7 @@ y = df[targets].values.astype(np.float32)
 smi_list = df['SMILES'].tolist()
 codes = df['CSD_code'].tolist()
 n = len(df)
-print(f'csv: {n} 行', flush=True)
+print(f'csv: {n} rows', flush=True)
 
 def atom_to_z(sym):
     tbl = {"H":1,"He":2,"Li":3,"Be":4,"B":5,"C":6,"N":7,"O":8,"F":9,"Ne":10,
@@ -33,10 +33,10 @@ def atom_to_z(sym):
            "Ir":77,"Os":76,"Re":75}
     return tbl.get(sym, 0)
 
-# ===== csv 侧: SMILES 解析 + 28元素TM检查 + 原子计数 =====
+# ===== csv side: SMILES parsing + 28-element TM check + atom counts =====
 parse_ok = np.zeros(n, bool); tm28 = np.zeros(n, bool)
 mol_natoms = np.zeros(n, dtype=np.int32)
-mol_counts = {}   # csv 行 -> Counter(元素->数)
+mol_counts = {}   # csv row -> Counter(element -> count)
 from collections import Counter
 for i, s in enumerate(smi_list):
     if not isinstance(s, str) or s == '':
@@ -51,7 +51,7 @@ for i, s in enumerate(smi_list):
     mol_counts[i] = Counter(zs)
 print(f'parse_ok {parse_ok.sum():,}  tm28 {tm28.sum():,}', flush=True)
 
-# ===== xyz 侧: 逐块提取 CSD 码 → (是否含TM, 解析原子数, 元素计数) =====
+# ===== xyz side: extract the CSD code block by block → (contains TM, parsed atom count, element counts) =====
 blk_tm = {}; blk_natoms = {}; blk_counts = {}
 for part in [1, 2, 3]:
     with gzip.open(f'data_tmQM/local_vB/tmQM_X{part}.xyz.gz', 'rt') as f:
@@ -80,7 +80,7 @@ for part in [1, 2, 3]:
                 blk_tm[code] = any(z in TM_SET for z in atoms) and len(atoms) > 1
                 blk_natoms[code] = len(atoms)
                 blk_counts[code] = Counter(atoms)
-print(f'xyz 块: {len(blk_tm):,}', flush=True)
+print(f'xyz blocks: {len(blk_tm):,}', flush=True)
 
 row_tm = np.array([blk_tm.get(str(c), False) for c in codes], dtype=bool)
 row_natoms = np.array([blk_natoms.get(str(c), -1) for c in codes], dtype=np.int32)
@@ -97,7 +97,7 @@ for i in range(n):
 
 print(f'row_tm {row_tm.sum():,}  cntmatch {row_cntmatch.sum():,}  matchable {row_matchable.sum():,}', flush=True)
 
-# ===== 候选掩码 =====
+# ===== Candidate masks =====
 P, T, X, C, M = parse_ok, tm28, row_tm, row_cntmatch, row_matchable
 cands = {
     'P':                        P,
@@ -123,10 +123,10 @@ for name, mask in cands.items():
     y_dom = y[kept_rows]
     nkept = len(kept_rows)
     if nkept < 90317:
-        print(f'{name:12s} 保留 {nkept:>7,} < 90,317 ✗', flush=True)
+        print(f'{name:12s} retained {nkept:>7,} < 90,317 ✗', flush=True)
         continue
     yt = y_dom[:90317][te_idx] if nkept > 90317 else y_dom[te_idx]
     diff = np.abs(yt - yt_ref).max(axis=1)
     nbad = int((diff > 1e-4).sum())
-    tag = '截断后' if nkept > 90317 else ''
-    print(f'{name:12s} 保留 {nkept:>7,} {tag} 不匹配行 {nbad:>5} / 13,547', flush=True)
+    tag = 'after truncation:' if nkept > 90317 else ''
+    print(f'{name:12s} retained {nkept:>7,} {tag} mismatched rows {nbad:>5} / 13,547', flush=True)

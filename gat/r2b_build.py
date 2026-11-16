@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""R2b: 全尺度消融 — 第一步: 建图 (服务器)
-全量 108,541 -> 100,715 TM -> ~90,317 图 (无 30k 采样)
-完整特征: 节点 11d (SMILES 8d + BO 3d) / 边 23d (bond4 + ring + metal-ligand + RBF16 + BO)
-变体在训练时通过 node_dim/edge_dim 截断实现, 建图只需一次
-输出: r2b_graphs.pt
+"""R2b: full-scale ablation — step 1: graph construction (server)
+Full set 108,541 -> 100,715 TM -> ~90,317 graphs (no 30k sampling)
+Full features: node 11d (SMILES 8d + BO 3d) / edge 23d (bond4 + ring + metal-ligand + RBF16 + BO)
+Variants are realised at training time by node_dim/edge_dim truncation, so graph construction is needed only once
+Output: r2b_graphs.pt
 """
 import gzip, json, sys
 import numpy as np
@@ -99,7 +99,7 @@ for part in [1, 2, 3]:
     all_m.extend(m); all_l.extend(l)
 print(f'Total {len(all_m)} TM complexes parsed', flush=True)
 
-# ===== SMILES 建图 (论文 ensemble_cv 协议, 全量) =====
+# ===== SMILES graph construction (manuscript ensemble_cv protocol, full set) =====
 ELEMENT_DATA_SM = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),
     15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),
     25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),
@@ -186,7 +186,7 @@ mask = ~(torch.isnan(y_all).any(dim=1) | torch.isinf(y_all).any(dim=1))
 graphs = [g for i, g in enumerate(graphs) if mask[i]]
 y_all = y_all[mask]
 atoms_filt = [a for i, a in enumerate(atoms_filt) if mask[i]]
-print(f'建图 {len(graphs):,} ({failed} failed, {(~mask).sum()} NaN 剔除)', flush=True)
+print(f'Built {len(graphs):,} graphs ({failed} failed, {(~mask).sum()} NaN removed)', flush=True)
 
 torch.save({'graphs': graphs, 'y_all': y_all, 'atoms_filt': atoms_filt}, 'r2b_graphs.pt')
 print('Saved -> r2b_graphs.pt')

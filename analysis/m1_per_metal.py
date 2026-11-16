@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""M1: per-metal 分层敏感性分析（纯推理，不动模型）
-- 3D: ensemble_predictions.npz 已存 9 模型集成均值 (13,547)
-- SMILES: 部署检查点 tmqm_gat_best.pt 在相同 13,547 测试配合物上重推
-- 金属: 从各配合物 SMILES 解析 (z>=21)
-输出: m1_per_metal.json + 分层表
+"""M1: per-metal stratified sensitivity analysis (inference only, models untouched)
+- 3D: ensemble_predictions.npz already stores the 9-model ensemble mean (13,547)
+- SMILES: re-inference of the deployment checkpoint tmqm_gat_best.pt on the same 13,547 test complexes
+- Metal: parsed from each complex's SMILES (z>=21)
+Output: m1_per_metal.json + stratified table
 """
 import sys, json, warnings
 sys.stdout.reconfigure(encoding='utf-8')
@@ -15,7 +15,7 @@ from sklearn.metrics import r2_score, mean_absolute_error
 
 device = torch.device('cpu')
 
-# ===== 1. 数据 =====
+# ===== 1. Data =====
 ep = np.load('ensemble_predictions.npz')
 y_true = ep['y_true']; xyz_mean = ep['mean']
 print(f'ensemble y_true: {y_true.shape}, xyz_mean: {xyz_mean.shape}')
@@ -29,7 +29,7 @@ targets = ['gap','homo','lumo','dipole','metal_charge','E_elec','E_disp','polari
 df_clean = df_y.dropna(subset=targets).copy()
 df_vals = df_clean[targets].values.astype(np.float32)
 
-# 精确匹配: float32 bytes -> csv 行号
+# Exact match: float32 bytes -> csv row index
 TM_SET = {21,22,23,24,25,26,27,28,29,30,39,40,41,42,43,44,45,46,47,48,72,73,74,75,76,77,78,79,80}
 lookup = {}
 for i in range(len(df_vals)):
@@ -185,7 +185,7 @@ with torch.no_grad():
         preds.append(pn * y_std_smiles + y_mean_smiles)
 smiles_preds = np.concatenate(preds, axis=0)
 
-# 对齐索引 (bad 图剔除)
+# Align indices (bad graphs removed)
 keep = np.array([i for i in range(len(te_smiles)) if i not in bad])
 y_t = y_true[np.array(matched_idx)[keep]]
 x_t = xyz_mean[np.array(matched_idx)[keep]]
@@ -193,9 +193,9 @@ s_t = smiles_preds
 metals_arr = np.array([metals[i] for i in keep], dtype=object)
 print(f'final N = {len(y_t):,}')
 
-# 总体校验 vs fair_comparison_results.csv
+# Overall check vs fair_comparison_results.csv
 fair = pd.read_csv('fair_comparison_results.csv')
-print('\n总体校验 (本脚本 vs fair_comparison_results.csv):')
+print('\nOverall check (this script vs fair_comparison_results.csv):')
 ok = True
 for i, prop in enumerate(targets):
     r2_s = r2_score(y_t[:, i], s_t[:, i]); r2_x = r2_score(y_t[:, i], x_t[:, i])
@@ -205,17 +205,17 @@ for i, prop in enumerate(targets):
     match_x = abs(r2_x - fr['XYZ_R2']) < 1e-3
     if not (match_s and match_x): ok = False
     print(f'  {prop:16s} SMILES {r2_s:.4f} (csv {fr["SMILES_R2"]:.4f}) {"✓" if match_s else "✗"} | 3D {r2_x:.4f} (csv {fr["XYZ_R2"]:.4f}) {"✓" if match_x else "✗"} | MAE_S {mae_s:.4f} MAE_X {mae_x:.4f}')
-print('总体一致:', '✓' if ok else '✗ 需检查')
+print('Overall agreement:', '✓' if ok else '✗ needs checking')
 print(f"\nmean R²: SMILES {np.mean([r2_score(y_t[:, i], s_t[:, i]) for i in range(8)]):.4f} | 3D {np.mean([r2_score(y_t[:, i], x_t[:, i]) for i in range(8)]):.4f}")
-print(f"胜者: " + " | ".join(f'{prop}: {"S" if r2_score(y_t[:, i], s_t[:, i]) > r2_score(y_t[:, i], x_t[:, i]) else "3D"}' for i, prop in enumerate(targets)))
+print(f"Winner: " + " | ".join(f'{prop}: {"S" if r2_score(y_t[:, i], s_t[:, i]) > r2_score(y_t[:, i], x_t[:, i]) else "3D"}' for i, prop in enumerate(targets)))
 
-# ===== per-metal 分层 =====
+# ===== per-metal stratification =====
 Z2SYM = {21:'Sc',22:'Ti',23:'V',24:'Cr',25:'Mn',26:'Fe',27:'Co',28:'Ni',29:'Cu',30:'Zn',
          39:'Y',40:'Zr',41:'Nb',42:'Mo',43:'Tc',44:'Ru',45:'Rh',46:'Pd',47:'Ag',48:'Cd',
          72:'Hf',73:'Ta',74:'W',75:'Re',76:'Os',77:'Ir',78:'Pt',79:'Au',80:'Hg'}
 uniq, counts = np.unique(metals_arr, return_counts=True)
 order = np.argsort(-counts)
-print('\nper-metal 测试集分布:')
+print('\nper-metal test-set distribution:')
 for u in order:
     print(f'  {Z2SYM[uniq[u]]:>3s} n={counts[u]:5d} ({counts[u]/len(metals_arr)*100:4.1f}%)')
 
@@ -228,11 +228,11 @@ for u in order:
         row[f'{prop}_3d'] = float(r2_score(y_t[idx, i], x_t[idx, i])) if len(idx) >= 30 else None
     rows.append(row)
 
-# 分组: abundant (Cu,Zn), mid (n>=300 的其余), rare (pooled)
+# Groups: abundant (Cu,Zn), mid (the remaining ones with n>=300), rare (pooled)
 cu_zn = np.isin(metals_arr, [29, 30])
 mid_mask = ~cu_zn & np.isin(metals_arr, [z for z, c in zip(uniq, counts) if c >= 300])
 rare_mask = ~(cu_zn | mid_mask)
-print(f'\n分组: Cu+Zn {cu_zn.sum()} ({cu_zn.mean()*100:.1f}%), mid(n>=300) {mid_mask.sum()}, rare {rare_mask.sum()}')
+print(f'\nGroups: Cu+Zn {cu_zn.sum()} ({cu_zn.mean()*100:.1f}%), mid(n>=300) {mid_mask.sum()}, rare {rare_mask.sum()}')
 
 groups = {'Cu+Zn': cu_zn, 'mid': mid_mask, 'rare': rare_mask}
 for gname, gm in groups.items():

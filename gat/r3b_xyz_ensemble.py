@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""R3b: 3D 集成对齐重跑 — 3-fold × 3-seed = 9 模型, 协议逐字对齐 ensemble_cv_weighted
-数据: r2b_graphs.pt (同一批 95,152 图, 与 R3 同一 14,272 测试集 — 配对可比)
-模型: XYZ_GNN(node_dim=11, edge_dim=23) — 完整 3D 特征 (SMILES 8d + BO 3d / bond+ring+ML+RBF16+BO)
-协议: RandomState(42) 15% 测试 + KFold(3, shuffle, 42) + SEEDS [42,123,456]
+"""R3b: 3D ensemble alignment rerun — 3-fold × 3-seed = 9 models, protocol verbatim aligned with ensemble_cv_weighted
+Data: r2b_graphs.pt (the same 95,152 graphs, the same 14,272 test set as R3 — paired and comparable)
+Model: XYZ_GNN(node_dim=11, edge_dim=23) — full 3D features (SMILES 8d + BO 3d / bond+ring+ML+RBF16+BO)
+Protocol: RandomState(42) 15% test + KFold(3, shuffle, 42) + SEEDS [42,123,456]
       AdamW lr=1e-3 wd=1e-4, CosineAnnealingWarmRestarts(T_0=50,T_mult=2), AMP,
-      bs=256, epochs=200, early_stop=40, sqrt 金属权重, per-model local 标准化
-输出: r3b_xyz_ensemble.npz (9成员预测+均值+std+y_true+te_idx) + r3b_xyz_results.json
+      bs=256, epochs=200, early_stop=40, sqrt metal weights, per-model local standardisation
+Output: r3b_xyz_ensemble.npz (9-member predictions+mean+std+y_true+te_idx) + r3b_xyz_results.json
 """
 import json, os, sys, time
 from collections import Counter
@@ -25,16 +25,16 @@ print(f'Device: {device}', flush=True)
 PROPS = ['gap', 'homo', 'lumo', 'dipole', 'metal_charge', 'E_elec', 'E_disp', 'polarizability']
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12; DROPOUT = 0.10
 SEEDS = [42, 123, 456]; FOLDS = 3
-BS = 256                                       # 协议固定 bs=256
-NW = int(os.environ.get('R3B_NW', '8'))        # DataLoader 进程数 (16 核给 8)
+BS = 256                                       # protocol fixes bs=256
+NW = int(os.environ.get('R3B_NW', '8'))        # number of DataLoader processes (8 out of 16 cores)
 CKPT = 'r3b_xyz_ckpt.pt'
 
-# ---------- 数据 ----------
+# ---------- Data ----------
 data = torch.load('r2b_graphs.pt', weights_only=False)
 graphs = data['graphs']; y_all = data['y_all']; atoms_filt = data['atoms_filt']
-print(f'加载 {len(graphs):,} 图', flush=True)
+print(f'Loaded {len(graphs):,} graphs', flush=True)
 
-# 划分 — 与 ensemble_cv_weighted Step 3 完全一致
+# Split — exactly identical to ensemble_cv_weighted Step 3
 idx_all = np.random.RandomState(42).permutation(len(graphs))
 n_test = int(len(graphs) * 0.15)
 te_idx = idx_all[:n_test]
@@ -43,7 +43,7 @@ kf = KFold(n_splits=3, shuffle=True, random_state=42)
 fold_splits = list(kf.split(cv_idx))
 print(f'Fixed test {len(te_idx):,} / CV pool {len(cv_idx):,}', flush=True)
 
-# 金属权重 sqrt(N/n) — 与 3D 集成一致
+# Metal weights sqrt(N/n) — consistent with the 3D ensemble
 mc = Counter()
 for atoms in atoms_filt:
     for z in set(atoms):
@@ -56,7 +56,7 @@ for i, atoms in enumerate(atoms_filt):
     sample_weights[i] = w
 sample_weights = sample_weights / sample_weights.mean()
 
-# ---------- 模型 (XYZ_GNN 同款, node 8d / edge 6d) ----------
+# ---------- Model (same XYZ_GNN, node 8d / edge 6d) ----------
 def segment_softmax(scores, dst, N):
     scores_f32 = scores.float()
     max_v = torch.full((N, scores_f32.size(1)), float('-inf'), device=scores_f32.device, dtype=torch.float32)
@@ -130,7 +130,7 @@ class XYZ_GNN(nn.Module):
             mf = torch.zeros(n_graphs, h.size(1), device=h.device, dtype=h.dtype)
         return self.readout(torch.cat([mean_h, max_h, mf], dim=1))
 
-# ---------- 数据管道: numpy 向量化 collate + 多进程 ----------
+# ---------- Data pipeline: numpy-vectorised collate + multiprocessing ----------
 class GraphDataset(Dataset):
     def __init__(self, graphs):
         self.graphs = graphs
@@ -162,7 +162,7 @@ def to_gpu(batched, batch_idx, gidx):
             batch_idx.to(device, non_blocking=True),
             gidx.to(device, non_blocking=True))
 
-# ---------- train_one_model (协议同 3D 集成) ----------
+# ---------- train_one_model (protocol same as the 3D ensemble) ----------
 def train_one_model(train_idx, val_idx, seed, fold_name):
     torch.manual_seed(seed); np.random.seed(seed)
     model = XYZ_GNN().to(device)
@@ -228,7 +228,7 @@ def train_one_model(train_idx, val_idx, seed, fold_name):
         val_r2s = [r2_score(yv_orig[:, i].numpy(), vp_orig[:, i].numpy()) for i in range(8)]
     return model.state_dict(), y_mean_local, y_std_local, val_r2s
 
-# ---------- 主循环 (断点续训) ----------
+# ---------- Main loop (resume training) ----------
 all_models = []
 results_log = []
 completed = set()
@@ -237,7 +237,7 @@ if os.path.exists(CKPT):
     all_models = ckpt['models']; results_log = ckpt.get('log', [])
     for m in all_models:
         completed.add((m['fold'], m['seed']))
-    print(f'恢复 {len(all_models)} 模型, 已完成 {sorted(completed)}', flush=True)
+    print(f'restored {len(all_models)} models, completed {sorted(completed)}', flush=True)
 
 t_start = time.time()
 for fold_idx in range(FOLDS):
@@ -258,14 +258,14 @@ for fold_idx in range(FOLDS):
                             'val_mean_r2': float(np.mean(val_r2s)), 'val_r2s': val_r2s,
                             'time_min': elapsed / 60})
         completed.add((fold_idx, seed))
-        print(f'  完成 {elapsed/60:.1f}min, Val Mean R² = {np.mean(val_r2s):.4f}', flush=True)
+        print(f'  done {elapsed/60:.1f}min, Val Mean R² = {np.mean(val_r2s):.4f}', flush=True)
     torch.save({'models': all_models, 'log': results_log}, CKPT)
     print(f'Checkpoint saved ({len(all_models)}/9)', flush=True)
 
-print(f'\n训练完成 {len(all_models)}/9 模型', flush=True)
+print(f'\ntraining complete {len(all_models)}/9 models', flush=True)
 
-# ---------- 测试集评估 (9 成员 + 集成) ----------
-print('\n测试集评估...', flush=True)
+# ---------- Test-set evaluation (9 members + ensemble) ----------
+print('\ntest-set evaluation...', flush=True)
 te_loader = make_loader(te_idx, shuffle=False)
 per_model = np.zeros((len(all_models), len(te_idx), 8), dtype=np.float32)
 for mi, m in enumerate(all_models):
@@ -290,10 +290,10 @@ r2_ens = {PROPS[i]: float(r2_score(y_true[:, i], ens_mean[:, i])) for i in range
 mae_ens = {PROPS[i]: float(mean_absolute_error(y_true[:, i], ens_mean[:, i])) for i in range(8)}
 mean_r2_ens = float(np.mean(list(r2_ens.values())))
 
-print('\nXYZ 集成 (9 成员均值) 逐性质:')
+print('\nXYZ ensemble (mean of 9 members), per property:')
 for i, p in enumerate(PROPS):
     print(f'  {p:14s} R² = {r2_ens[p]:.4f}  MAE = {mae_ens[p]:.4f}  '
-          f'(单模型 {np.mean(r2_single[p]):.4f} ± {np.std(r2_single[p]):.4f})')
+          f'(single model {np.mean(r2_single[p]):.4f} ± {np.std(r2_single[p]):.4f})')
 print(f'  Mean R² = {mean_r2_ens:.4f}')
 
 np.savez_compressed('r3b_xyz_ensemble.npz',

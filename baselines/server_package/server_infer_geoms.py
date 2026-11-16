@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""意见2(b): ETKDG+MMFF 部署几何上的测试集推断 (变体 B=8d/22d, D=11d/23d)
-官方 XYZ 几何结果已在 server_train_variants.py 的标准测试评估中得出; 本脚本只跑 ETKDG 通道。
-输出: geom_preds_{V}.npz + geom_results.json (双几何配对差异)
+"""Reviewer comment 2(b): test-set inference on ETKDG+MMFF deployment geometries (variants B=8d/22d, D=11d/23d)
+The official XYZ-geometry results come from the standard test evaluation in server_train_variants.py; this script only runs the ETKDG channel.
+Outputs: geom_preds_{V}.npz + geom_results.json (paired differences between the two geometries)
 """
 import os, sys, json
 import numpy as np, torch, torch.nn as nn
@@ -87,19 +87,19 @@ class XYZ_GNN(nn.Module):
         mf = scatter_mean_per_graph(h[mm], batch[mm], n_graphs) if mm.any() else torch.zeros(n_graphs, h.size(1), device=h.device, dtype=h.dtype)
         return self.readout(torch.cat([mean_h, max_h, mf], dim=1))
 
-# ================= 数据 =================
+# ================= Data =================
 DATA = torch.load('new_domain_iso.pt', map_location='cpu', weights_only=False)
 te_idx = DATA['te_idx']
 y_all = DATA['y_all']
 ETKDG = torch.load('etkdg_test_graphs.pt', map_location='cpu', weights_only=False)
 ok = ETKDG['ok']
-print(f'ETKDG 成功: {ok.sum()}/{len(ok)}')
+print(f'ETKDG succeeded: {ok.sum()}/{len(ok)}')
 
 def infer_variant(VNAME, node_dim, edge_dim, graphs_etkdg):
     ck = torch.load(f'ensemble_checkpoint_{VNAME}.pt', map_location='cpu', weights_only=False)
     models = ck['models']
     print(f'{VNAME}: {len(models)} models', flush=True)
-    # 预建 index: 按 ok 过滤; 并与训练脚本截断口径 int(0.15*N)=13,556 对齐
+    # Pre-build index: filter by ok; and align with the training script's truncation basis int(0.15*N)=13,556
     n_te_trunc = int(0.15 * DATA['y_all'].size(0))
     idxs = [i for i in range(len(te_idx)) if ok[i] and i < n_te_trunc]
     gs = [graphs_etkdg[i] for i in idxs]
@@ -146,7 +146,7 @@ for VNAME, nd, ed in [('B_8d22d', 8, 22), ('D_11d23d', 11, 23)]:
     np.savez(f'geom_preds_{VNAME}_etkdg.npz', preds=ap, ens_mean=ens, y_true=yt, idxs=np.array(idxs))
     print(f'{VNAME} ETKDG mean ensemble R2 = {res["mean_ens_r2"]:.4f}', flush=True)
 
-# 与官方 XYZ 几何结果 (test_preds_{V}.npz) 配对比较
+# Paired comparison against the official XYZ-geometry results (test_preds_{V}.npz)
 for VNAME in ['B_8d22d', 'D_11d23d']:
     z = np.load(f'test_preds_{VNAME}.npz')
     ens_xyz = z['ens_mean']; yt_xyz = z['y_true']

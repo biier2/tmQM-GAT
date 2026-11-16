@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""id12b② · 实际运行环境中 EmbedMolecule 的默认参数：
-   (a) 文档默认值 dump；(b) 各 ETKDG 预置参数 diff；
-   (c) 经验等价性测试：wrapper 默认调用 vs 各预置（同 seed 逐坐标比对）→ 判定 wrapper 实际等价于哪个预置。
-用法: python embed_defaults.py <tag>
+"""id12b(2) · defaults of EmbedMolecule in the actual run environment:
+   (a) dump of the documented defaults; (b) diffs between the various ETKDG preset parameters;
+   (c) empirical equivalence test: wrapper default call vs each preset (coordinate-by-coordinate comparison at the same seed) → determine which preset the wrapper is actually equivalent to.
+Usage: python embed_defaults.py <tag>
 """
 import sys, os, json, inspect
 sys.stdout.reconfigure(encoding='utf-8')
@@ -18,7 +18,7 @@ CSV = r'D:\ml\chem_ml5\data_tmQM\local_vB\tmQM_y.csv'
 
 res = {'tag': TAG, 'rdkit': rdkit.__version__, 'python': sys.version.split()[0]}
 
-# ---------- (a) 文档 ----------
+# ---------- (a) Documentation ----------
 doc = getattr(AllChem.EmbedMolecule, '__doc__', '')
 res['allchem_embedmolecule_doc'] = doc
 try:
@@ -26,7 +26,7 @@ try:
 except Exception as e:
     res['signature'] = f'<unavailable: {e}>'
 
-# ---------- (b) 预置参数 dump ----------
+# ---------- (b) Preset-parameter dump ----------
 PRESETS = ['ETKDG', 'ETKDGv2', 'ETKDGv3', 'srETKDGv3', 'KDG', 'ETDG']
 SKIP = {'SetSeed', 'SetCoordMap', 'Assign', 'GetName'}
 
@@ -61,7 +61,7 @@ for name in PRESETS:
 psets['EmbedParametersBase'] = dump_ps(rdDistGeom.EmbedParameters())
 res['presets'] = psets
 
-# 与 EmbedParametersBase 的差异表
+# Difference table relative to EmbedParametersBase
 base = psets['EmbedParametersBase']
 diffs = {}
 for name in PRESETS:
@@ -69,13 +69,13 @@ for name in PRESETS:
         diffs[name] = {k: v for k, v in psets[name].items() if base.get(k, '<missing>') != v}
 res['preset_vs_base_diff'] = diffs
 
-# ---------- (c) 经验等价性测试 ----------
+# ---------- (c) Empirical equivalence test ----------
 df = pd.read_csv(CSV, sep=';', usecols=['SMILES', 'CSD_code'])
 test_mols = []
 test_mols.append(('cyclopropane_acid', 'C1CC1C(=O)O'))
 test_mols.append(('cyclobutane', 'C1CCC1'))
 test_mols.append(('benzene', 'c1ccccc1'))
-# 取一个真 tmQM Ni / Fe 样例
+# take one real tmQM Ni / Fe example
 for sym, key in [('Ni', 'ni'), ('Fe', 'fe')]:
     hit = df[df['SMILES'].astype(str).str.contains(sym)]
     if len(hit):

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""S4: 9 成员 ensemble std 不确定性校准分析（纯统计，基于已有 ensemble_predictions.npz，不重训）"""
+"""S4: 9-member ensemble std uncertainty calibration analysis (pure statistics, based on the existing ensemble_predictions.npz, no retraining)"""
 import numpy as np
 import json
 
@@ -32,7 +32,7 @@ for t, lo, mi, hi in rows:
     ratio = hi['MAE'] / lo['MAE'] if lo['MAE'] > 0 else float('nan')
     print(f'{t:16s} {lo["MAE"]:9.4f} {mi["MAE"]:9.4f} {hi["MAE"]:9.4f} {ratio:9.2f} {hi["corr_std_err"]:15.3f}')
 
-# 全局 std-误差相关性
+# Global std-error correlation
 all_s, all_e = std.ravel(), np.abs(mean - y_true).ravel()
 gcorr = float(np.corrcoef(all_s, all_e)[0, 1])
 print(f'\nGlobal Spearman corr(std, |err|): {np.corrcoef(all_s, all_e)[0,1]:.3f}')

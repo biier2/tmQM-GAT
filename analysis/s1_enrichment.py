@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""S1: 决策阈值下的富集因子 / top-k 召回（可复现留档）
-   EF = (命中数/k) / (极值总数/N)；对照 = 成分-only ridge（_comp_pred.npy）"""
+"""S1: Enrichment factor at the decision threshold / top-k recall (reproducible record)
+   EF = (hits/k) / (total extremes/N); control = composition-only ridge (_comp_pred.npy)"""
 import sys, json; sys.stdout.reconfigure(encoding='utf-8')
 import numpy as np
 PROPS = ['gap','homo','lumo','dipole','metal_charge','E_elec','E_disp','polarizability']

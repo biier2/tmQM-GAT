@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-"""M7-SMILES: 碳供体扩展 donor 集合重算 (SMILES 部署模型版)
-协议 (复刻 xai_smiles.ipynb):
-  - XAI 子集: RandomState(42) 全量排列建图至 20,000 (8d 节点/6d 边)
-  - 模型: tmqm_gat_best.pt = 部署 SMILES GAT (8->384, 5xGATConv 12heads 32d, edge 6d, readout 3x384->8)
-  - 注意力: 第5层 alpha.mean(12) -> scatter 到目标节点 -> 归一化 -> top-5
-  - 扰动: 2000 子集 (RandomState(123).choice), 逐原子零掩码, |Δpred| 求和 8 性质
-扩展: DONOR_EXT = {N,O,S,P,Cl,Br,I} ∪ 金属键合 C (与 TM 成键的 C);
-      C 分类: 羰基 C (C-O 多重键) / NHC C (芳香 5 环且邻 N) / 其他 M-C
-先跑经典集合 sanity check (目标 20.5% / 73.4% / 4.3% / 19.76%)
+"""M7-SMILES: Recompute with the extended carbon-donor set (SMILES deployment model version)
+Protocol (reproducing xai_smiles.ipynb):
+  - XAI subset: RandomState(42) over the full permutation, building graphs up to 20,000 (8d node / 6d edge)
+  - Model: tmqm_gat_best.pt = deployment SMILES GAT (8->384, 5xGATConv 12heads 32d, edge 6d, readout 3x384->8)
+  - Attention: layer 5 alpha.mean(12) -> scatter to destination nodes -> normalise -> top-5
+  - Perturbation: 2000 subset (RandomState(123).choice), per-atom zero masking, |Δpred| summed over the 8 properties
+Extension: DONOR_EXT = {N,O,S,P,Cl,Br,I} ∪ metal-bonded C (C bonded to the TM);
+      C classification: carbonyl C (C-O multiple bond) / NHC C (aromatic 5-ring adjacent to N) / other M-C
+Run the classic-set sanity check first (targets 20.5% / 73.4% / 4.3% / 19.76%)
 """
 import sys, json, warnings
 sys.stdout.reconfigure(encoding='utf-8')
@@ -46,11 +46,11 @@ def build_xai_graph(smiles):
         bf = [0.0] * N_BT
         if bt in B2I: bf[B2I[bt]] = 1.0
         bf.extend([is_ring, is_ml])
-        battr.extend([bf, bf])  # SMILES 6d (无 RBF/MBO)
+        battr.extend([bf, bf])  # SMILES 6d (no RBF/MBO)
     ei = torch.tensor([src, dst], dtype=torch.long) if src else torch.zeros(2, 0, dtype=torch.long)
     ea = torch.tensor(battr, dtype=torch.float32) if battr else torch.zeros(0, 6)
     syms = [a.GetSymbol() for a in mol.GetAtoms()]
-    # 碳供体分类 (按原子)
+    # Carbon-donor classification (per atom)
     atom_cls = [None] * len(syms)
     zs = [a.GetAtomicNum() for a in mol.GetAtoms()]
     nbr = [[] for _ in syms]
@@ -60,7 +60,7 @@ def build_xai_graph(smiles):
     for a in mol.GetAtoms():
         i = a.GetIdx()
         if zs[i] == 6 and any(zs[j] in TM_SET for j, _ in nbr[i]):
-            # 羰基: C-O 多重键
+            # Carbonyl: C-O multiple bond
             if any(zs[j] == 8 and btype >= 2.0 for j, btype in nbr[i]):
                 atom_cls[i] = 'carbonyl_C'
             elif a.GetIsAromatic() and a.IsInRingSize(5) and any(zs[j] == 7 for j, _ in nbr[i]):
@@ -69,7 +69,7 @@ def build_xai_graph(smiles):
                 atom_cls[i] = 'other_MC'
     return {'x': x, 'edge_index': ei, 'edge_attr': ea, 'num_nodes': len(syms)}, syms, atom_cls
 
-# ===== 1. 重建 20,000 子集 =====
+# ===== 1. Rebuild the 20,000 subset =====
 df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')
 smiles_by_idx = df_y['SMILES'].tolist()
 N_XAI = 20000
@@ -87,7 +87,7 @@ for csv_i in indices:
     xai_graphs.append(g); xai_symbols.append(sym); xai_cls.append(cls); built += 1
 print(f'built {built:,} graphs')
 
-# ===== 2. 模型 =====
+# ===== 2. Model =====
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12
 def segment_softmax(scores, dst, N):
     scores_f32 = scores.float()
@@ -150,9 +150,9 @@ model.load_state_dict(state, strict=False)
 model.eval()
 print(f'tmqm_gat_best.pt loaded; missing={missing[:3]} unexpected={unexpected[:3]}')
 
-# ===== 3. 注意力分析 (per-complex, 同 notebook) =====
-top5_counts = defaultdict(int)          # 元素 -> 次数 (经典)
-top5_ext = defaultdict(int)             # 元素/类别 -> 次数 (扩展: M-C 单独计数)
+# ===== 3. Attention analysis (per-complex, same as the notebook) =====
+top5_counts = defaultdict(int)          # element -> count (classic)
+top5_ext = defaultdict(int)             # element/category -> count (extended: M-C counted separately)
 layerwise_donor_frac = defaultdict(list)
 layerwise_donor_ext = defaultdict(list)
 n_mc_complexes = 0
@@ -192,17 +192,17 @@ metal_cls = sum(v for k, v in top5_counts.items() if k in METAL_SYM)
 c_cls = top5_counts.get('C', 0)
 mc_top5 = sum(v for k, v in top5_ext.items() if k in ('carbonyl_C', 'nhc_C', 'other_MC'))
 backbone_c_top5 = c_cls - mc_top5
-print(f'\n=== sanity check (经典集合, 期望 20.5/73.4/4.3) ===')
+print(f'\n=== sanity check (classic set, expected 20.5/73.4/4.3) ===')
 print(f'donor {100*donor_cls/(total*5):.2f}% | C {100*c_cls/(total*5):.2f}% | metal {100*metal_cls/(total*5):.2f}%')
-print(f'\n=== 扩展集合 ===')
-print(f'M-C 配合物: {n_mc_complexes:,}/{total:,} ({100*n_mc_complexes/total:.1f}%)')
-print(f'M-C 碳计数: {dict(mc_carbon_counts)} (每配合物均值 {sum(mc_carbon_counts.values())/total:.2f})')
-print(f'donor(经典) top-5 {100*donor_cls/(total*5):.2f}% -> donor(含 M-C) {100*(donor_cls+mc_top5)/(total*5):.2f}%')
-print(f'C top-5 {100*c_cls/(total*5):.2f}% 拆分: M-C {100*mc_top5/(total*5):.2f}% (羰基 {100*top5_ext.get("carbonyl_C",0)/(total*5):.2f}% / NHC {100*top5_ext.get("nhc_C",0)/(total*5):.2f}% / 其他 {100*top5_ext.get("other_MC",0)/(total*5):.2f}%) + 骨架 C {100*backbone_c_top5/(total*5):.2f}%')
+print(f'\n=== extended set ===')
+print(f'M-C complexes: {n_mc_complexes:,}/{total:,} ({100*n_mc_complexes/total:.1f}%)')
+print(f'M-C carbon counts: {dict(mc_carbon_counts)} (per-complex mean {sum(mc_carbon_counts.values())/total:.2f})')
+print(f'donor(classic) top-5 {100*donor_cls/(total*5):.2f}% -> donor(with M-C) {100*(donor_cls+mc_top5)/(total*5):.2f}%')
+print(f'C top-5 {100*c_cls/(total*5):.2f}% split: M-C {100*mc_top5/(total*5):.2f}% (carbonyl {100*top5_ext.get("carbonyl_C",0)/(total*5):.2f}% / NHC {100*top5_ext.get("nhc_C",0)/(total*5):.2f}% / other {100*top5_ext.get("other_MC",0)/(total*5):.2f}%) + backbone C {100*backbone_c_top5/(total*5):.2f}%')
 for l in range(5):
-    print(f'Layer {l+1}: donor 经典 {np.mean(layerwise_donor_frac[l])*100:.2f}% | 含 M-C {np.mean(layerwise_donor_ext[l])*100:.2f}%')
+    print(f'Layer {l+1}: donor classic {np.mean(layerwise_donor_frac[l])*100:.2f}% | with M-C {np.mean(layerwise_donor_ext[l])*100:.2f}%')
 
-# ===== 4. 扰动 (2,000 子集, 扩展 donor 集合) =====
+# ===== 4. Perturbation (2,000 subset, extended donor set) =====
 targets = ['gap','homo','lumo','dipole','metal_charge','E_elec','E_disp','polarizability']
 N_PERTURB = 2000
 perturb_idx = np.random.RandomState(123).choice(len(xai_graphs), N_PERTURB, replace=False)
@@ -231,7 +231,7 @@ for ii in tqdm(range(len(perturb_idx)), desc='perturb'):
         if donor_ext_idx:
             perturb_donor_ext[prop_name].append(float(sum(abs(atom_attrs[j, prop_j]) for j in donor_ext_idx) / (total_abs + 1e-8)))
 
-print('\n=== 扰动 donor fraction (经典 vs 含 M-C) ===')
+print('\n=== perturbation donor fraction (classic vs with M-C) ===')
 pert_summary = {}
 for t in targets:
     a = float(np.mean(perturb_donor_frac[t])) if perturb_donor_frac[t] else None
@@ -240,7 +240,7 @@ for t in targets:
     print(f'{t:16s} classic {a*100:.1f}% -> with M-C {b*100:.1f}%' if a is not None else f'{t}: n/a')
 
 
-# ===== 5. 注意力 vs 扰动 top-5 一致性 + paired z 检验 =====
+# ===== 5. Attention vs perturbation top-5 agreement + paired z-test =====
 print('\n=== B3: attention vs perturbation top-5 overlap + z test ===')
 overlap_rates, chance_rates = [], []
 for ii in tqdm(range(len(perturb_idx)), desc='consistency'):

@@ -10,20 +10,20 @@ def add_code(src, cid):
     cells.append({"cell_type": "code", "metadata": {}, "execution_count": None, "outputs": [],
                   "source": [l + '\n' for l in src.split('\n')], "id": cid})
 
-add_md("""# XYZ GNN 物理一致性约束重训练
+add_md("""# Retraining XYZ GNN with a physics consistency constraint
 
-## 目的
-当前 XYZ GNN 的 gap vs (LUMO-HOMO) 偏差为 1.2 mHa (SMILES GAT 为 0.2 mHa)。
-加入 tmGNN-XAI 同款 L1 软约束重训:
+## Purpose
+The current XYZ GNN has a gap vs (LUMO-HOMO) deviation of 1.2 mHa (SMILES GAT: 0.2 mHa).
+Retrain with the same L1 soft constraint as tmGNN-XAI:
 ```
 loss = MSE_loss + 0.1 × |gap_pred - (lumo_pred - homo_pred)|
 ```
 
-## 步骤
-1. 备份 `xyz_best.pt` → `xyz_best_backup.pt`
-2. 用相同数据 + 相同配置重训，loss 中加入 physics penalty
-3. 保存为 `xyz_physics.pt`
-4. 回到 `physics_consistency.ipynb` 重新评估，对比新旧偏差""", "retrain_intro")
+## Steps
+1. Back up `xyz_best.pt` → `xyz_best_backup.pt`
+2. Retrain with the same data + the same configuration, adding the physics penalty to the loss
+3. Save as `xyz_physics.pt`
+4. Go back to `physics_consistency.ipynb` and re-evaluate, comparing the old and new deviations""", "retrain_intro")
 
 add_code("""import numpy as np, pandas as pd, time, gzip, os, sys
 import warnings; warnings.filterwarnings('ignore')
@@ -47,7 +47,7 @@ from rdkit import RDLogger; RDLogger.logger().setLevel(RDLogger.ERROR)
 from sklearn.metrics import r2_score
 from tqdm import tqdm
 
-# ===== 备份 =====
+# ===== backup =====
 if os.path.exists('xyz_best.pt') and not os.path.exists('xyz_best_backup.pt'):
     import shutil
     shutil.copy('xyz_best.pt', 'xyz_best_backup.pt')
@@ -57,7 +57,7 @@ elif os.path.exists('xyz_best_backup.pt'):
 else:
     print('xyz_best.pt not found, nothing to backup')
 
-# ===== 加载目标值 =====
+# ===== load target values =====
 df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')
 df_y = df_y.rename(columns={
     'HL_Gap': 'gap', 'HOMO_Energy': 'homo', 'LUMO_Energy': 'lumo',
@@ -70,7 +70,7 @@ print(f'Loaded {len(df_y)} complexes')
 """, "retrain_backup")
 
 add_code("""print('='*60)
-print('Step 1: XYZ+BO解析 + SMILES建图 (同tmQM_Fe_XYZ)')
+print('Step 1: XYZ+BO parsing + SMILES graph building (same as tmQM_Fe_XYZ)')
 print('='*60)
 
 def atom_to_z(sym):
@@ -143,7 +143,7 @@ for part in [1, 2, 3]:
     print(f'    {len(m)} TM complexes')
 print(f'Total: {len(all_m)} TM complexes parsed')
 
-# ===== SMILES建图 =====
+# ===== SMILES graph building =====
 ELEMENT_DATA_SM = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),44:(5,8),45:(5,9),46:(5,10),47:(5,11),48:(5,12),53:(5,17),72:(6,4),73:(6,5),74:(6,6),75:(6,7),76:(6,8),77:(6,9),78:(6,10),79:(6,11),80:(6,12)}
 BOND_TYPES_SM = [1,2,3,12]; B2I_SM = {b:i for i,b in enumerate(BOND_TYPES_SM)}; N_BT_SM = 4
 rbf_c = np.linspace(1.0, 5.0, 16); rbf_sigma = 0.2
@@ -217,7 +217,7 @@ print(f'After NaN removal: {len(graphs):,} complexes')
 """, "retrain_data")
 
 add_code("""print('='*60)
-print('Step 2: 模型定义 + GPU预加载')
+print('Step 2: model definition + GPU preloading')
 print('='*60)
 
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12; DROPOUT = 0.10; N_TARGETS = len(targets)
@@ -302,13 +302,13 @@ class XYZ_GNN(nn.Module):
 
 print(f'Params: {sum(p.numel() for p in XYZ_GNN().parameters()):,}')
 
-# GPU预加载
+# GPU preloading
 print('Uploading graphs to GPU...')
 graphs_gpu = [{k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in g.items()} for g in tqdm(graphs, desc='GPU')]
 y_all_gpu = y_all.to(device)
 print(f'GPU memory: {torch.cuda.memory_allocated()/1024**3:.1f} GB')
 
-# 金属加权
+# metal weighting
 mc = Counter()
 for atoms in atoms_filt:
     for z in set(atoms):
@@ -322,21 +322,21 @@ print(f'Sample weights: mean={sample_weights.mean().item():.2f}')
 """, "retrain_model")
 
 add_code("""print('='*60)
-print('Step 3: 训练 (with physics penalty α=0.1)')
+print('Step 3: training (with physics penalty α=0.1)')
 print('='*60)
 
-# 数据划分
+# data split
 idx_all = np.random.RandomState(42).permutation(len(graphs))
 n_tr = int(len(graphs) * 0.7); n_va = int(len(graphs) * 0.15)
 tr_idx = idx_all[:n_tr]; va_idx = idx_all[n_tr:n_tr+n_va]; te_idx = idx_all[n_tr+n_va:]
 print(f'Train: {len(tr_idx):,} | Val: {len(va_idx):,} | Test: {len(te_idx):,}')
 
-# 归一化
+# normalization
 y_tr = y_all_gpu[tr_idx]
 y_mean = y_tr.mean(dim=0); y_std = y_tr.std(dim=0).clamp(min=1e-8)
 y_norm = (y_all_gpu - y_mean) / y_std
 
-PHYSICS_ALPHA = 0.1  # tmGNN-XAI同款系数
+PHYSICS_ALPHA = 0.1  # same coefficient as tmGNN-XAI
 model = XYZ_GNN().to(device)
 opt = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-4)
 sched = optim.lr_scheduler.CosineAnnealingWarmRestarts(opt, T_0=50, T_mult=2, eta_min=1e-6)
@@ -361,7 +361,7 @@ for ep in range(epochs):
         with autocast('cuda'):
             preds = model(batched, batch_idx)
             mse_loss = (crit(preds, by).mean(dim=1) * w).mean()
-            # 物理一致性 —— 在归一化空间里gap/homo/lumo仍有此关系（同源数据归一化）
+            # physics consistency — gap/homo/lumo still satisfy this relation in normalized space (same-source data normalization)
             physics_loss = PHYSICS_ALPHA * torch.abs(preds[:,0] - (preds[:,2] - preds[:,1])).mean()
             loss = mse_loss + physics_loss
         scaler.scale(loss).backward(); scaler.unscale_(opt)
@@ -394,7 +394,7 @@ for ep in range(epochs):
     if patience >= early_stop: break
 
     if (ep+1) % 30 == 0:
-        # 反归一化后算物理偏差
+        # compute the physics deviation after de-normalization
         vp_orig = vp.cpu() * y_std.cpu() + y_mean.cpu()
         phys_dev = torch.abs(vp_orig[:,0] - (vp_orig[:,2] - vp_orig[:,1])).mean().item()
         print(f'Epoch {ep+1:3d}: MSE={va_mse.item():.4f} | Physics={phys_dev*1000:.3f} mHa | LR={opt.param_groups[0]["lr"]:.1e} | Pat={patience}')
@@ -403,11 +403,11 @@ elapsed = (time.time()-t0)/60
 print(f'\\nTraining done in {elapsed:.0f}min (best_va={best_va:.4f})')
 model.load_state_dict(best_state); model.eval()
 
-# 保存
+# save
 torch.save(best_state, 'xyz_physics.pt')
 print('Saved → xyz_physics.pt')
 
-# 最终物理偏差
+# final physics deviation
 with torch.no_grad():
     te_preds = []
     for s in range(0, len(te_idx), bs):
@@ -432,7 +432,7 @@ plt.rcParams['axes.unicode_minus'] = False
 
 fig, axes = plt.subplots(1, 3, figsize=(16, 4.5))
 
-# 训练曲线
+# training curves
 axes[0].plot(hist['tr_loss'], label='Train MSE', alpha=0.7)
 axes[0].plot(hist['va_loss'], label='Val MSE', alpha=0.7)
 axes[0].set_xlabel('Epoch'); axes[0].set_ylabel('MSE (normalized)')
@@ -444,7 +444,7 @@ axes[1].set_xlabel('Epoch'); axes[1].set_ylabel('Physics Deviation (mHa)')
 axes[1].set_title(f'|gap - (LUMO-HOMO)| on Val Set\\nFinal: {hist["physics_loss"][-1]*1000:.3f} mHa')
 axes[1].grid(alpha=0.3)
 
-# Before/After对比
+# Before/After comparison
 axes[2].bar(['Before (xyz_best.pt)', 'After (xyz_physics.pt)'], [1.247, phys_dev*1000], color=['steelblue', 'darkorange'])
 axes[2].set_ylabel('Mean |gap - (LUMO-HOMO)| (mHa)')
 axes[2].set_title('Physics Consistency Improvement')
@@ -458,14 +458,14 @@ plt.tight_layout(); plt.show()
 print(f'\\nImprovement: {(1.247 - phys_dev*1000):.3f} mHa reduction')
 """, "retrain_viz")
 
-add_md("""## 对比
+add_md("""## Comparison
 
-| Checkpoint | Mean 偏差 | 说明 |
+| Checkpoint | Mean deviation | Note |
 |------|:---:|------|
-| `xyz_best.pt` | 1.247 mHa | 无物理约束 |
-| `xyz_physics.pt` | (见上方) | α=0.1 L1约束 |
+| `xyz_best.pt` | 1.247 mHa | no physics constraint |
+| `xyz_physics.pt` | (see above) | α=0.1 L1 constraint |
 
-回到 `physics_consistency.ipynb` 加载 `xyz_physics.pt` 做完整对比评估。
+Go back to `physics_consistency.ipynb` and load `xyz_physics.pt` for the full comparative evaluation.
 """, "retrain_summary")
 
 # ============================================================

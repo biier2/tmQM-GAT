@@ -11,7 +11,7 @@ validation and test:
   edge_attr[:, 6:]<- 0   (16 RBF distances + 1 WBO)
 
 The arrays are kept at 11/23 columns (not sliced down to 8/6) so the resulting
-state_dict is a drop-in for the XYZ_GNN_Eval class in figures/final_render_scripts/fig4_infer.py.
+state_dict is a drop-in for the XYZ_GNN_Eval class in archive/final_render_scripts/fig4_infer.py.
 """
 import numpy as np
 import torch

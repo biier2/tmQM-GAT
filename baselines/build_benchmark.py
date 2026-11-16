@@ -11,29 +11,29 @@ def add_code(src, cid):
                   "source": [l + '\n' for l in src.split('\n')], "id": cid})
 
 # ============================================================
-# Cell 1: 简介
+# Cell 1: Introduction
 # ============================================================
-add_md("""# 外部基准对比：RF / XGBoost / SMILES GAT / XYZ GNN / tmGNN-XAI
+add_md("""# External benchmark comparison: RF / XGBoost / SMILES GAT / XYZ GNN / tmGNN-XAI
 
-## 目的
-在**同一测试集**上对比五种方法，回应审稿人"你怎么证明 GAT > 传统ML / RGCN？"
+## Purpose
+Compare five methods on the **same test set**, answering the reviewer's question "how do you prove GAT > traditional ML / RGCN?"
 
-## 方法
-| 方法 | 特征 | 模型 | 来源 |
+## Methods
+| Method | Features | Model | Source |
 |------|------|------|------|
-| **RF** | ECFP4 2048-bit (radius=2) | 500棵树, max_depth=15 | sklearn |
-| **XGBoost** | ECFP4 2048-bit (radius=2) | 500轮, max_depth=8 | xgboost |
-| **SMILES GAT** | 分子图 (8维节点 + 6维边) | 12头×384d×5层 | 本项目 |
-| **XYZ GNN** | 分子图 + DFT距离16RBF + Mayer BO (11维节点 + 23维边) | 12头×384d×5层 | 本项目 |
-| **tmGNN-XAI** | 分子图 + METAL-COORD边 (100维金属节点) | RGCN 256d×5层, 5模型ensemble | Onawole, JCIM 2026 |
+| **RF** | ECFP4 2048-bit (radius=2) | 500 trees, max_depth=15 | sklearn |
+| **XGBoost** | ECFP4 2048-bit (radius=2) | 500 rounds, max_depth=8 | xgboost |
+| **SMILES GAT** | molecular graph (8-dim nodes + 6-dim edges) | 12 heads×384d×5 layers | this project |
+| **XYZ GNN** | molecular graph + DFT distance 16 RBF + Mayer BO (11-dim nodes + 23-dim edges) | 12 heads×384d×5 layers | this project |
+| **tmGNN-XAI** | molecular graph + METAL-COORD edges (100-dim metal nodes) | RGCN 256d×5 layers, 5-model ensemble | Onawole, JCIM 2026 |
 
-## 评估指标
-- **MAE** (平均绝对误差): 越小越好
-- **R²** (决定系数): 越接近1越好
-- **8个性质**: gap, homo, lumo, dipole, metal_charge, E_elec, E_disp, polarizability""", "bm_intro")
+## Metrics
+- **MAE** (mean absolute error): the smaller the better
+- **R²** (coefficient of determination): the closer to 1 the better
+- **8 properties**: gap, homo, lumo, dipole, metal_charge, E_elec, E_disp, polarizability""", "bm_intro")
 
 # ============================================================
-# Cell 2: 加载数据 + 生成ECFP指纹
+# Cell 2: Load data + generate ECFP fingerprints
 # ============================================================
 add_code("""import numpy as np, pandas as pd, time, os, json, sys
 import warnings; warnings.filterwarnings('ignore')
@@ -45,10 +45,10 @@ from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
 from tqdm import tqdm
 
 print('='*60)
-print('Step 1: 加载数据 + ECFP指纹')
+print('Step 1: Load data + ECFP fingerprints')
 print('='*60)
 
-# 加载目标值
+# Load target values
 df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')
 df_y = df_y.rename(columns={
     'HL_Gap': 'gap', 'HOMO_Energy': 'homo', 'LUMO_Energy': 'lumo',
@@ -58,14 +58,14 @@ df_y = df_y.rename(columns={
 })
 targets = ['gap', 'homo', 'lumo', 'dipole', 'metal_charge', 'E_elec', 'E_disp', 'polarizability']
 
-# 过滤无效SMILES (float/NaN)
+# Filter invalid SMILES (float/NaN)
 raw_smiles = df_y['SMILES'].tolist()
 valid_smiles_mask = np.array([isinstance(s, str) and s != '' for s in raw_smiles])
 smiles_list = [s for s, m in zip(raw_smiles, valid_smiles_mask) if m]
 y_all = df_y[targets].values.astype(np.float32)[valid_smiles_mask]
 print(f'Loaded {len(df_y)} total, {len(smiles_list)} valid SMILES, {len(targets)} targets')
 
-# 生成 ECFP4 指纹 (radius=2, 2048-bit — 分子指纹标准)
+# Generate ECFP4 fingerprints (radius=2, 2048-bit — the standard molecular fingerprint)
 def compute_ecfp(smiles_list, radius=2, nBits=2048):
     fps = []
     failed = 0
@@ -87,7 +87,7 @@ X_ecfp = compute_ecfp(smiles_list, radius=2, nBits=2048)
 print(f'ECFP matrix: {X_ecfp.shape}')
 print(f'Sparsity: {X_ecfp.mean()*100:.1f}% non-zero bits')
 
-# 去除NaN目标值
+# Remove NaN target values
 valid_mask = ~(np.isnan(y_all).any(axis=1) | np.isinf(y_all).any(axis=1))
 X_ecfp = X_ecfp[valid_mask]
 y_all = y_all[valid_mask]
@@ -96,13 +96,13 @@ print(f'After NaN removal: {len(X_ecfp):,} complexes')
 """, "bm_data")
 
 # ============================================================
-# Cell 3: 数据划分 (匹配GNN的70/15/15, seed=42)
+# Cell 3: Data split (matching the GNN's 70/15/15, seed=42)
 # ============================================================
 add_code("""print('='*60)
-print('Step 2: 数据划分 (70/15/15, seed=42)')
+print('Step 2: Data split (70/15/15, seed=42)')
 print('='*60)
 
-# 与 tmQM_Fe_XYZ.ipynb Cell 5 完全一致的划分方式
+# Split exactly identical to tmQM_Fe_XYZ.ipynb Cell 5
 idx = np.random.RandomState(42).permutation(len(X_ecfp))
 n_tr = int(len(X_ecfp) * 0.7)
 n_va = int(len(X_ecfp) * 0.15)
@@ -117,16 +117,16 @@ X_te, y_te = X_ecfp[te_idx], y_all[te_idx]
 print(f'Train: {len(tr_idx):,} | Val: {len(va_idx):,} | Test: {len(te_idx):,}')
 print(f'Features: {X_ecfp.shape[1]}')
 
-# 保存划分索引，后续GNN评估使用
+# Save the split indices for later GNN evaluation
 np.savez('benchmark_split.npz', tr_idx=tr_idx, va_idx=va_idx, te_idx=te_idx)
 print('Split saved to benchmark_split.npz')
 """, "bm_split")
 
 # ============================================================
-# Cell 4: 训练 Random Forest
+# Cell 4: Train Random Forest
 # ============================================================
 add_code("""print('='*60)
-print('Step 3: Random Forest (每个性质独立训练)')
+print('Step 3: Random Forest (independent training per property)')
 print('='*60)
 
 rf_models = {}
@@ -141,12 +141,12 @@ for i, prop in enumerate(targets):
     )
     rf.fit(X_tr, y_tr[:, i])
 
-    # 验证集
+    # Validation set
     va_pred = rf.predict(X_va)
     va_mae = mean_absolute_error(y_va[:, i], va_pred)
     va_r2 = r2_score(y_va[:, i], va_pred)
 
-    # 测试集
+    # Test set
     te_pred = rf.predict(X_te)
     te_mae = mean_absolute_error(y_te[:, i], te_pred)
     te_r2 = r2_score(y_te[:, i], te_pred)
@@ -169,10 +169,10 @@ print(f'Mean R²: {rf_df["Test_R2"].mean():.4f}')
 """, "bm_rf")
 
 # ============================================================
-# Cell 5: 训练 XGBoost
+# Cell 5: Train XGBoost
 # ============================================================
 add_code("""print('='*60)
-print('Step 4: XGBoost (每个性质独立训练)')
+print('Step 4: XGBoost (independent training per property)')
 print('='*60)
 
 try:
@@ -197,12 +197,12 @@ for i, prop in enumerate(targets):
     )
     model.fit(X_tr, y_tr[:, i])
 
-    # 验证集
+    # Validation set
     va_pred = model.predict(X_va)
     va_mae = mean_absolute_error(y_va[:, i], va_pred)
     va_r2 = r2_score(y_va[:, i], va_pred)
 
-    # 测试集
+    # Test set
     te_pred = model.predict(X_te)
     te_mae = mean_absolute_error(y_te[:, i], te_pred)
     te_r2 = r2_score(y_te[:, i], te_pred)
@@ -225,17 +225,17 @@ print(f'Mean R²: {xgb_df["Test_R2"].mean():.4f}')
 """, "bm_xgb")
 
 # ============================================================
-# Cell 6: 加载 SMILES GAT 并在测试集上评估
+# Cell 6: Load SMILES GAT and evaluate on the test set
 # ============================================================
 add_code("""print('='*60)
-print('Step 5: SMILES GAT 测试集评估')
+print('Step 5: SMILES GAT test-set evaluation')
 print('='*60)
 
 import torch, torch.nn as nn
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Device: {device}')
 
-# === SMILES GAT 模型定义 (与 tmQM_Fe.ipynb 完全一致) ===
+# === SMILES GAT model definition (exactly identical to tmQM_Fe.ipynb) ===
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12
 
 ELEMENT_DATA = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),44:(5,8),45:(5,9),46:(5,10),47:(5,11),48:(5,12),53:(5,17),72:(6,4),73:(6,5),74:(6,6),75:(6,7),76:(6,8),77:(6,9),78:(6,10),79:(6,11),80:(6,12)}
@@ -343,7 +343,7 @@ class SMILES_GAT(nn.Module):
         metal_feat = scatter_mean_per_graph(h[metal_mask], batch[metal_mask], n_graphs) if metal_mask.any() else torch.zeros(n_graphs, h.size(1), device=h.device, dtype=h.dtype)
         return self.readout(torch.cat([mean_h, max_h, metal_feat], dim=1))
 
-# 加载checkpoint
+# Load checkpoint
 model_smiles = SMILES_GAT(node_dim=8, edge_dim=6, hidden=HIDDEN, output_dim=8, heads=GAT_HEADS).to(device)
 ckpt = 'tmqm_gat_best.pt'
 if not os.path.exists(ckpt): ckpt = 'tmqm_best.pt'
@@ -355,7 +355,7 @@ else:
     print(f'ERROR: {ckpt} not found')
 model_smiles.eval()
 
-# 为测试集构建SMILES图
+# Build SMILES graphs for the test set
 print(f'Building SMILES graphs for test set ({len(te_idx):,} complexes)...')
 smiles_graphs, smile_failed = [], []
 for i in tqdm(te_idx, desc='SMILES graphs'):
@@ -367,15 +367,15 @@ for i in tqdm(te_idx, desc='SMILES graphs'):
     smiles_graphs.append((i, g))
 print(f'Built {len(smiles_graphs)} graphs ({len(smile_failed)} failed)')
 
-# 反归一化: 模型输出z-score值, 使用训练时的全量数据集统计量
-# 这些统计量与 scorer.ipynb / tmQM_Fe.ipynb 一致
+# De-normalisation: the model outputs z-scores; use the full-dataset statistics from training
+# These statistics are consistent with scorer.ipynb / tmQM_Fe.ipynb
 y_mean_smiles = np.array([0.108504, -0.197593, -0.089089, 5.799450, 0.162882,
                           -2987.303526, -0.142228, 397.124993], dtype=np.float32)
 y_std_smiles  = np.array([0.033575, 0.053825, 0.054517, 3.927489, 0.782914,
                           1634.083288, 0.070115, 152.460083], dtype=np.float32)
 print(f'De-normalization using full tmQM dataset statistics (108k complexes)')
 
-# 批量推理
+# Batched inference
 bs_smiles = 128
 smiles_preds = np.zeros((len(te_idx), 8), dtype=np.float32) * np.nan
 with torch.no_grad():
@@ -385,12 +385,12 @@ with torch.no_grad():
         batch_graphs = [{k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in item[1].items()} for item in batch_items]
         batched, batch_idx = collate_graphs(batch_graphs)
         preds_norm = model_smiles(batched, batch_idx).cpu().numpy()
-        preds = preds_norm * y_std_smiles + y_mean_smiles  # 反归一化
+        preds = preds_norm * y_std_smiles + y_mean_smiles  # de-normalisation
         for j, idx in enumerate(batch_indices):
             pos = np.where(te_idx == idx)[0][0]
             smiles_preds[pos] = preds[j]
 
-# 计算指标 (只对成功预测的样本)
+# Compute metrics (only for successfully predicted samples)
 valid_smiles = ~np.isnan(smiles_preds).any(axis=1)
 y_te_valid = y_te[valid_smiles]
 smiles_preds_valid = smiles_preds[valid_smiles]
@@ -409,27 +409,27 @@ print(f'Mean R²: {smiles_df["Test_R2"].mean():.4f}')
 """, "bm_smiles_gat")
 
 # ============================================================
-# Cell 7: XYZ GNN 测试集评估 (简化版——如果XYZ数据已解析)
+# Cell 7: XYZ GNN test-set evaluation (simplified — if the XYZ data is already parsed)
 # ============================================================
 add_code("""print('='*60)
-print('Step 6: XYZ GNN 测试集评估')
+print('Step 6: XYZ GNN test-set evaluation')
 print('='*60)
 
-# XYZ GNN 需要解析 XYZ+BO 文件来建图，这很慢。
-# 如果 benchmark_split.npz 中测试集索引与 XYZ notebook 的测试集一致，
-# 可以直接用 XYZ notebook 的测试结果。
+# XYZ GNN needs to parse XYZ+BO files to build graphs, which is very slow.
+# If the test-set indices in benchmark_split.npz match the XYZ notebook's test set,
+# we can directly use the XYZ notebook's test results.
 
-# 检查测试集是否匹配
+# Check whether the test sets match
 split_data = np.load('benchmark_split.npz')
 te_idx_bench = split_data['te_idx']
 
-# 从 XYZ notebook (Cell 5) 中记录的测试集大小判断
-# 如果本notebook和XYZ notebook都用 seed=42 对相同数据排列后 70/15/15 划分，
-# 则测试集索引应当一致
+# Judge from the test-set size recorded in the XYZ notebook (Cell 5)
+# If this notebook and the XYZ notebook both use seed=42 on the same data permutation with a 70/15/15 split,
+# the test-set indices should be identical
 print(f'Benchmark test set: {len(te_idx_bench):,} indices')
 print(f'Expected XYZ test set: ~14,274 (95,152 total × 15%)')
 
-# 直接使用已知的 XYZ GNN 测试结果 (来自 PUBLICATION_PLAN.md)
+# Use the known XYZ GNN test results directly (from PUBLICATION_PLAN.md)
 xyz_known = {
     'gap':        {'MAE': 0.0089, 'R²': 0.8373},
     'homo':       {'MAE': 0.0081, 'R²': 0.9394},
@@ -440,7 +440,7 @@ xyz_known = {
     'E_disp':     {'MAE': 0.0130, 'R²': 0.9233},
     'polarizability': {'MAE': 26.10, 'R²': 0.9385},
 }
-print('Using XYZ GNN results (自动金属加权, 最新训练)')
+print('Using XYZ GNN results (automatic metal weighting, latest training)')
 print(f'  Mean R²: 0.8955 (evaluated on 14,274 test set, seed=42 split)')
 print(f'  Note: XYZ data is a subset (~95k) of SMILES data (~108k)')
 print(f'  due to XYZ+BO parsing requirements')
@@ -456,14 +456,14 @@ print(f'Mean R²: {xyz_df["Test_R2"].mean():.4f}')
 """, "bm_xyz_gnn")
 
 # ============================================================
-# Cell 8: 统一对比表
+# Cell 8: Unified comparison table
 # ============================================================
 add_code("""print('='*60)
-print('Step 7: 统一对比表 (所有方法 × 所有性质)')
+print('Step 7: Unified comparison table (all methods × all properties)')
 print('='*60)
 
-# tmGNN-XAI 的已发表结果 (来自论文 Table 2, 10,099测试集)
-# 注意: 他们测试集划分方式不同 (80/10/10 分层随机, 100,703配合物)
+# Published results of tmGNN-XAI (from Table 2 of the paper, 10,099 test set)
+# Note: their test split differs (80/10/10 stratified random, 100,703 complexes)
 tmgnn_xai = {
     'gap':        {'MAE': 0.0093, 'R²': 0.838},
     'homo':       {'MAE': 0.0074, 'R²': 0.964},
@@ -471,11 +471,11 @@ tmgnn_xai = {
     'dipole':     {'MAE': 1.621, 'R²': 0.606},
     'metal_charge': {'MAE': 0.077, 'R²': 0.979},
     'polarizability': {'MAE': 19.96, 'R²': 0.957},
-    'E_elec':     {'MAE': None, 'R²': None},  # 他们没有这个性质
-    'E_disp':     {'MAE': None, 'R²': None},  # 他们没有这个性质
+    'E_elec':     {'MAE': None, 'R²': None},  # they do not have this property
+    'E_disp':     {'MAE': None, 'R²': None},  # they do not have this property
 }
 
-# 构建对比表
+# Build the comparison table
 comparison = []
 for i, prop in enumerate(targets):
     row = {'Property': prop}
@@ -494,9 +494,9 @@ for i, prop in enumerate(targets):
 
 comp_df = pd.DataFrame(comparison)
 
-# === R² 对比表 ===
+# === R² comparison table ===
 print('\\n' + '='*110)
-print('R² 对比 (越高越好)')
+print('R² comparison (the higher the better)')
 print('='*110)
 header = f'{"Property":16s} {"RF":>8s} {"XGBoost":>8s} {"SMILES_GAT":>12s} {"XYZ_GNN":>12s} {"tmGNN-XAI":>12s}'
 print(header)
@@ -510,7 +510,7 @@ for row in comparison:
     tmg_r2 = f'{row["tmGNN_XAI_R2"]:.4f}' if row['tmGNN_XAI_R2'] is not None else '—'
     print(f'{prop:16s} {rf_r2:>8s} {xgb_r2:>8s} {sm_r2:>12s} {xyz_r2:>12s} {tmg_r2:>12s}')
 
-# 各方法Mean R² (排除缺失值)
+# Mean R² of each method (missing values excluded)
 rf_mean = np.mean([r['RF_R2'] for r in comparison if r['RF_R2'] is not None])
 xgb_mean = np.mean([r['XGB_R2'] for r in comparison if r['XGB_R2'] is not None])
 sm_mean = np.mean([r['SMILES_GAT_R2'] for r in comparison if r['SMILES_GAT_R2'] is not None])
@@ -520,9 +520,9 @@ tmg_mean = np.mean([r['tmGNN_XAI_R2'] for r in comparison if r['tmGNN_XAI_R2'] i
 print('-' * 75)
 print(f'{"Mean R²":16s} {rf_mean:8.4f} {xgb_mean:8.4f} {sm_mean:12.4f} {xyz_mean:12.4f} {tmg_mean:12.4f}')
 
-# === MAE 对比表 ===
+# === MAE comparison table ===
 print('\\n' + '='*110)
-print('MAE 对比 (越低越好)')
+print('MAE comparison (the lower the better)')
 print('='*110)
 print(f'{"Property":16s} {"RF":>10s} {"XGBoost":>10s} {"SMILES_GAT":>12s} {"XYZ_GNN":>12s} {"tmGNN-XAI":>12s}')
 print('-' * 80)
@@ -536,19 +536,19 @@ for row in comparison:
         return f'{v:.1f}'
     print(f'{prop:16s} {fmt_mae(row["RF_MAE"]):>10s} {fmt_mae(row["XGB_MAE"]):>10s} {fmt_mae(row["SMILES_GAT_MAE"]):>12s} {fmt_mae(row["XYZ_GNN_MAE"]):>12s} {fmt_mae(row["tmGNN_XAI_MAE"]):>12s}')
 
-# 保存结果
+# Save results
 comp_df.to_csv('benchmark_results.csv', index=False)
 print('\\nResults saved to benchmark_results.csv')
 """, "bm_compare")
 
 # ============================================================
-# Cell 9: 可视化
+# Cell 9: Visualisation
 # ============================================================
 add_code("""import matplotlib.pyplot as plt
 plt.rcParams['font.sans-serif'] = ['Noto Sans CJK SC', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
-# === R² 分组柱状图 ===
+# === Grouped R² bar chart ===
 fig, ax = plt.subplots(figsize=(18, 7))
 x = np.arange(len(targets))
 width = 0.15
@@ -562,26 +562,26 @@ for method, key_prefix in [('RF', 'RF_R2'), ('XGBoost', 'XGB_R2'), ('SMILES GAT'
 for j, (method, color) in enumerate(zip(methods, colors)):
     vals = [v if v is not None else 0 for v in r2_data[method]]
     bars = ax.bar(x + j*width, vals, width, label=method, color=color, edgecolor='white', linewidth=0.5)
-    # 标注数值
+    # Annotate values
     for bar, val in zip(bars, r2_data[method]):
         if val is not None and val > 0.5:
             ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
                     f'{val:.3f}', ha='center', va='bottom', fontsize=7, rotation=90)
 
-ax.set_ylabel('R²'); ax.set_title('外部基准对比：R² (越高越好)', fontsize=14, fontweight='bold')
+ax.set_ylabel('R²'); ax.set_title('External benchmark comparison: R² (the higher the better)', fontsize=14, fontweight='bold')
 ax.set_xticks(x + width * 2); ax.set_xticklabels(targets, fontsize=10)
 ax.legend(loc='lower right', fontsize=9)
 ax.set_ylim(0, 1.05); ax.grid(axis='y', alpha=0.3)
 plt.tight_layout(); plt.show()
 
-# === MAE 分组柱状图 (归一化到 [0,1], 因为不同性质尺度差异大) ===
+# === Grouped MAE bar chart (normalised to [0,1], because the properties differ greatly in scale) ===
 fig, ax = plt.subplots(figsize=(18, 7))
 
 mae_data = {}
 for method, key_prefix in [('RF', 'RF_MAE'), ('XGBoost', 'XGB_MAE'), ('SMILES GAT', 'SMILES_GAT_MAE'), ('XYZ GNN', 'XYZ_GNN_MAE'), ('tmGNN-XAI', 'tmGNN_XAI_MAE')]:
     mae_data[method] = [row[key_prefix] for row in comparison]
 
-# 对每个性质, 以RF的MAE为基准归一化
+# For each property, normalise to the RF MAE
 rf_mae_vals = mae_data['RF']
 normalized_mae = {}
 for method in methods:
@@ -598,13 +598,13 @@ for j, (method, color) in enumerate(zip(methods, colors)):
     bars = ax.bar(x + j*width, vals, width, label=method, color=color, edgecolor='white', linewidth=0.5)
 
 ax.axhline(y=1.0, color='#f1c40f', linestyle='--', linewidth=1, alpha=0.7, label='RF baseline')
-ax.set_ylabel('Relative MAE (RF=1.0)'); ax.set_title('相对MAE (以RF为基准, 越低越好)', fontsize=14, fontweight='bold')
+ax.set_ylabel('Relative MAE (RF=1.0)'); ax.set_title('Relative MAE (RF as reference, the lower the better)', fontsize=14, fontweight='bold')
 ax.set_xticks(x + width * 2); ax.set_xticklabels(targets, fontsize=10)
 ax.legend(loc='upper right', fontsize=9)
 ax.grid(axis='y', alpha=0.3)
 plt.tight_layout(); plt.show()
 
-# === Mean R² 总览 ===
+# === Mean R² overview ===
 fig, ax = plt.subplots(figsize=(10, 5))
 mean_r2s = [rf_mean, xgb_mean, sm_mean, xyz_mean, tmg_mean]
 bar_colors = ['#f1c40f', '#e67e22', '#3498db', '#e74c3c', '#2ecc71']
@@ -612,43 +612,43 @@ bars = ax.bar(methods, mean_r2s, color=bar_colors, edgecolor='white', linewidth=
 for bar, val in zip(bars, mean_r2s):
     ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
             f'{val:.4f}', ha='center', va='bottom', fontsize=11, fontweight='bold')
-ax.set_ylabel('Mean R² (8 properties)'); ax.set_title('各方法Mean R²对比', fontsize=14, fontweight='bold')
+ax.set_ylabel('Mean R² (8 properties)'); ax.set_title('Mean R² comparison across methods', fontsize=14, fontweight='bold')
 ax.set_ylim(0, max(mean_r2s)*1.15); ax.grid(axis='y', alpha=0.3)
 plt.tight_layout(); plt.show()
 
-# === 关键发现 ===
+# === Key findings ===
 print('\\n' + '='*60)
-print('关键发现')
+print('Key findings')
 print('='*60)
-print(f'1. SMILES GAT Mean R² = {sm_mean:.4f} — 明显优于 RF ({rf_mean:.4f}) 和 XGBoost ({xgb_mean:.4f})')
-print(f'2. XYZ GNN Mean R² = {xyz_mean:.4f} — 在SMILES GAT基础上进一步提升了dipole和metal_charge')
-print(f'3. GNN方法相比传统ML的最大优势在 dipole (3D构象依赖)')
-print(f'4. E_elec和E_disp是tmGNN-XAI没有预测的性质, 我们的模型独有')
+print(f'1. SMILES GAT Mean R² = {sm_mean:.4f} — clearly better than RF ({rf_mean:.4f}) and XGBoost ({xgb_mean:.4f})')
+print(f'2. XYZ GNN Mean R² = {xyz_mean:.4f} — further improves dipole and metal_charge over SMILES GAT')
+print(f'3. The biggest advantage of GNN methods over traditional ML is on dipole (3D conformation dependent)')
+print(f'4. E_elec and E_disp are properties that tmGNN-XAI does not predict; only our model covers them')
 if tmg_mean > 0:
-    print(f'5. tmGNN-XAI Mean R² = {tmg_mean:.4f} (仅6/7个性质), 但他们的ensemble+CV可能降低过拟合')
+    print(f'5. tmGNN-XAI Mean R² = {tmg_mean:.4f} (only 6/7 properties), but their ensemble+CV may reduce overfitting')
 """, "bm_viz")
 # ============================================================
-# Cell 9: 公平对比 — SMILES GAT vs XYZ GNN 在同一测试集上
+# Cell 9: Fair comparison — SMILES GAT vs XYZ GNN on the same test set
 # ============================================================
 add_code("""print('='*60)
-print('Step 8: 公平对比 — 同一测试集上 SMILES GAT vs XYZ GNN')
+print('Step 8: Fair comparison — SMILES GAT vs XYZ GNN on the same test set')
 print('='*60)
 
-# 策略: 从 ensemble_predictions.npz 获取 XYZ 测试集的 ground truth,
-#       通过精确匹配 8 个目标值在 df_y 中反查 SMILES,
-#       然后用 SMILES GAT 推理, 实现同一批配合物上的直接对比
+# Strategy: get the XYZ test-set ground truth from ensemble_predictions.npz,
+#       look up the SMILES in df_y by exact-matching the 8 target values,
+#       then run SMILES GAT inference, enabling a direct comparison on the same batch of complexes
 
-# === 加载 ensemble 预测 ===
+# === Load ensemble predictions ===
 if not os.path.exists('ensemble_predictions.npz'):
     print('ERROR: ensemble_predictions.npz not found. Run ensemble_cv.ipynb first.')
     has_xyz_model = False
 else:
     ep = np.load('ensemble_predictions.npz')
-    xyz_preds_full = ep['mean']      # [n_test, 8], ensemble 均值预测
-    y_truth_full = ep['y_true']      # [n_test, 8], DFTrue 值
+    xyz_preds_full = ep['mean']      # [n_test, 8], ensemble mean prediction
+    y_truth_full = ep['y_true']      # [n_test, 8], DFT true values
     print(f'Loaded ensemble predictions: {xyz_preds_full.shape}')
 
-    # === 通过 y_true 在 df_y 中反查 SMILES ===
+    # === Look up SMILES in df_y via y_true ===
     targets = ['gap','homo','lumo','dipole','metal_charge','E_elec','E_disp','polarizability']
     df_y_clean = df_y.dropna(subset=targets).copy()
     df_y_vals = df_y_clean[targets].values.astype(np.float32)
@@ -658,10 +658,10 @@ else:
     matched_indices = []
     for row_idx in tqdm(range(len(y_truth_full)), desc='SMILES lookup'):
         yt = y_truth_full[row_idx]
-        # 找最接近匹配的行
+        # Find the closest-matching row
         diffs = np.abs(df_y_vals - yt).sum(axis=1)
         best_match = int(np.argmin(diffs))
-        if diffs[best_match] < 1e-4:  # 精确匹配
+        if diffs[best_match] < 1e-4:  # exact match
             smi = df_y_clean.iloc[best_match]['SMILES']
             if isinstance(smi, str) and smi != '':
                 te_smiles.append(smi)
@@ -669,16 +669,16 @@ else:
 
     print(f'Matched {len(te_smiles):,} / {len(y_truth_full):,} complexes')
 
-    # === 数据泄漏检查: ensemble test set 是否与 SMILES GAT 训练集重叠 ===
+    # === Data-leakage check: does the ensemble test set overlap the SMILES GAT training set? ===
     all_smiles = [s for s in df_y['SMILES'].tolist() if isinstance(s, str) and s != '']
     all_idx = np.random.RandomState(42).permutation(len(all_smiles))
     n_tr_sm = int(len(all_smiles) * 0.7)
-    sm_tr_indices = set(all_idx[:n_tr_sm])  # SMILES GAT 训练集 (绝对索引)
-    # matched_indices 是 ensemble y_true 在 df_y_clean 中的行号, 需转换为 all_smiles 的索引
+    sm_tr_indices = set(all_idx[:n_tr_sm])  # SMILES GAT training set (absolute indices)
+    # matched_indices are row numbers of the ensemble y_true in df_y_clean and must be converted to all_smiles indices
     leakage_count = 0
     for csv_i in matched_indices:
         smi = df_y_clean.iloc[csv_i]['SMILES']
-        # 在 all_smiles 中找位置
+        # Find the position in all_smiles
         for pos, s in enumerate(all_smiles):
             if s == smi:
                 if pos in sm_tr_indices:
@@ -691,7 +691,7 @@ else:
     else:
         print(f'  OK: Leakage within acceptable range.')
 
-    # === 建图 + SMILES GAT 推理 ===
+    # === Build graphs + SMILES GAT inference ===
     print('Building SMILES graphs...')
     fair_graphs = []
     for smi in tqdm(te_smiles, desc='SMILES graphs'):
@@ -703,7 +703,7 @@ else:
     match_idx_valid = [matched_indices[i] for i in range(len(matched_indices)) if valid_g[i]]
     print(f'Built {len(fair_graphs_valid)} valid graphs out of {len(te_smiles)}')
 
-    # SMILES GAT 推理
+    # SMILES GAT inference
     bs = 128
     smiles_preds_fair = []
     with torch.no_grad():
@@ -714,12 +714,12 @@ else:
             smiles_preds_fair.append(pn * y_std_smiles + y_mean_smiles)
     smiles_preds_fair = np.concatenate(smiles_preds_fair, axis=0)
 
-    # XYZ GNN 预测 (已匹配的索引)
+    # XYZ GNN predictions (matched indices)
     xyz_preds_fair = xyz_preds_full[match_idx_valid]
     te_y_final = y_truth_full[match_idx_valid]
     has_xyz_model = True
 
-# === 公平对比表 ===
+# === Fair comparison table ===
 print(f'\\n{\"=\"*100}')
 print('FAIR COMPARISON: Both models evaluated on the SAME {:,} test complexes'.format(len(te_y_final)))
 print(f'{\"=\"*100}')
@@ -759,33 +759,33 @@ if has_xyz_model:
 """, "bm_fair")
 
 # ============================================================
-# Cell 10: 可视化
+# Cell 10: Visualisation
 
 # ============================================================
-# Cell 10: 讨论
+# Cell 10: Discussion
 # ============================================================
-add_md("""## 讨论与局限
+add_md("""## Discussion and limitations
 
-### 基准对比的局限性
-1. **测试集不完全一致**: tmGNN-XAI 使用 80/10/10 分层随机划分 (10,099测试集)，我们使用 70/15/15 划分 (14,274测试集)。直接比较R²值时需注意此差异
-2. **RF/XGBoost在相同测试集上训练**: 确保了与我们的GNN模型的可比性
-3. **XYZ GNN测试集更小**: XYZ+BO解析失败的配合物被排除 (~95k vs ~108k)
+### Limitations of the benchmark comparison
+1. **The test sets are not fully identical**: tmGNN-XAI uses an 80/10/10 stratified random split (10,099 test set), whereas we use a 70/15/15 split (14,274 test set). This difference must be kept in mind when comparing R² values directly
+2. **RF/XGBoost are trained on the same test set**: this ensures comparability with our GNN models
+3. **The XYZ GNN test set is smaller**: complexes that failed XYZ+BO parsing are excluded (~95k vs ~108k)
 
-### 回应审稿人
-| 审稿人关注点 | 本基准提供的证据 |
+### Response to the reviewers
+| Reviewer concern | Evidence provided by this benchmark |
 |------|------|
-| "GAT > RGCN?" | GAT在dipole上明显优于tmGNN-XAI的RGCN (R² 0.658 vs 0.606) |
-| "GNN > 传统ML?" | SMILES GAT Mean R²明显优于RF和XGBoost |
-| "3D信息有价值?" | XYZ GNN的dipole R² (0.658) > SMILES GAT (0.627) = 3D信息的量化贡献 |
-| "外部基准完整?" | 提供了RF + XGBoost + tmGNN-XAI三组外部对比 |
+| "GAT > RGCN?" | GAT is clearly better than tmGNN-XAI's RGCN on dipole (R² 0.658 vs 0.606) |
+| "GNN > traditional ML?" | SMILES GAT Mean R² is clearly better than RF and XGBoost |
+| "Is 3D information valuable?" | XYZ GNN's dipole R² (0.658) > SMILES GAT (0.627) = the quantified contribution of 3D information |
+| "Is the external benchmark complete?" | Provides three external comparisons: RF + XGBoost + tmGNN-XAI |
 
-### 下一步
-- **Chemprop**: 如果有GPU，加一组Chemprop D-MPNN对比会更完整
-- **Ensemble CV**: 当前是单模型对比，多模型ensemble可以进一步缩小与tmGNN-XAI的差距
+### Next steps
+- **Chemprop**: if a GPU is available, adding a Chemprop D-MPNN comparison would be more complete
+- **Ensemble CV**: the current comparison is single-model; a multi-model ensemble could further narrow the gap to tmGNN-XAI
 """, "bm_discussion")
 
 # ============================================================
-# 写入 notebook
+# Write the notebook
 # ============================================================
 nb = {"nbformat": 4, "nbformat_minor": 5,
       "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
@@ -795,7 +795,7 @@ nb = {"nbformat": 4, "nbformat_minor": 5,
 with open('benchmark_comparison.ipynb', 'w', encoding='utf-8') as f:
     json.dump(nb, f, indent=1, ensure_ascii=False)
 
-# 验证 JSON
+# Validate JSON
 with open('benchmark_comparison.ipynb', encoding='utf-8') as f:
     json.load(f)
 print(f'Built {len(cells)} cells, JSON valid → benchmark_comparison.ipynb')

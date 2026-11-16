@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""§3.6 跨泛函验证重跑: 新 A 变体 9 模型集成在 tmQMg (PBE0-D3BJ/def2-TZVP, 73,438 条) 上推断
-数据口径与 external_validation.ipynb cell1 一致: 官方 tzvp_* 列直读, 无重算
-输出 crossfunct_A_results.json + crossfunct_A_preds.npz (供 Fig6 重渲)
+"""§3.6 Cross-functional validation re-run: new A-variant 9-model ensemble inference on tmQMg (PBE0-D3BJ/def2-TZVP, 73,438 entries)
+Data basis identical to external_validation.ipynb cell1: official tzvp_* columns read directly, no recomputation
+Outputs crossfunct_A_results.json + crossfunct_A_preds.npz (for Fig6 re-render)
 """
 import os, sys, json, warnings
 warnings.filterwarnings('ignore')
@@ -92,7 +92,7 @@ class XYZ_GNN(nn.Module):
         mf = scatter_mean_per_graph(h[mm], batch[mm], n_graphs) if mm.any() else torch.zeros(n_graphs, h.size(1), device=h.device, dtype=h.dtype)
         return self.readout(torch.cat([mean_h, max_h, mf], dim=1))
 
-# ---------- tmQMg 数据 (与 external_validation.ipynb cell1 一致) ----------
+# ---------- tmQMg data (identical to external_validation.ipynb cell1) ----------
 ELEMENT_DATA_SM = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),44:(5,8),45:(5,9),46:(5,10),47:(5,11),48:(5,12),53:(5,17),72:(6,4),73:(6,5),74:(6,6),75:(6,7),76:(6,8),77:(6,9),78:(6,10),79:(6,11),80:(6,12)}
 BOND_TYPES_SM = [1,2,3,12]; B2I_SM = {b:i for i,b in enumerate(BOND_TYPES_SM)}; N_BT_SM = 4
 
@@ -143,7 +143,7 @@ for i, smi in enumerate(df_valid['smiles']):
 y_ext_final = y_ext[indices]
 print(f'Graphs: {len(graphs)}', flush=True)
 
-# ---------- A 变体 9 模型推断 ----------
+# ---------- A-variant 9-model inference ----------
 ck = torch.load('ensemble_checkpoint_A_8d6d.pt', map_location='cpu', weights_only=False)
 models = ck['models']
 print(f'Models: {len(models)}', flush=True)

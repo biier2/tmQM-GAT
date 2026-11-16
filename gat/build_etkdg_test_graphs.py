@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""意见2(b): 新域测试集 ETKDG+MMFF 部署几何图 (与 scorer_3d 协议一致: AddHs→Embed(42,200)→MMFF→RemoveHs)
-节点/边拓扑直接复用 new_domain_iso.pt (官方 XYZ 版), 仅 RBF 距离来自 ETKDG 构象; BO=0, 节点BO3=0
+"""Comment 2(b): ETKDG+MMFF deployment geometry graphs for the new-domain test set (protocol identical to scorer_3d: AddHs→Embed(42,200)→MMFF→RemoveHs)
+Node/edge topology is reused directly from new_domain_iso.pt (official XYZ version); only the RBF distances come from the ETKDG conformer; BO=0, node BO3=0
 """
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
@@ -50,4 +50,4 @@ for t, ti in enumerate(te_idx):
 
 torch.save({'graphs_B': gB, 'graphs_D': gD, 'ok': np.array(ok, dtype=bool),
             'te_idx': te_idx}, 'etkdg_test_graphs.pt')
-print(f'ETKDG 成功率: {sum(ok)}/{len(ok)} = {sum(ok)/len(ok)*100:.1f}%')
+print(f'ETKDG success rate: {sum(ok)}/{len(ok)} = {sum(ok)/len(ok)*100:.1f}%')

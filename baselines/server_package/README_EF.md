@@ -1,40 +1,40 @@
-# 第三轮硬伤一：变体 E/F 诊断作业（可加分解 C 的 WBO 节点特征）
+# Round-3 major issue 1: variant E/F diagnostic jobs (additively decomposing the WBO node features of C)
 
-## 背景（一句话）
-第三轮审稿意见质疑"3D 增益主要来自配位数编码（拓扑量），而非键长"。但**变体 A 的 8d 节点特征里第 2 维已经是 `atom.GetDegree()`= 金属配位数**，所以 C−A 的增益不可能主要来自配位数。
-本作业把 C 的 3 维 WBO 统计**拆开**跑，精确定位增益来源。
+## Background (one sentence)
+The round-3 reviewer comments questioned whether "the 3D gain mainly comes from coordination-number encoding (a topological quantity) rather than bond lengths". But **the 2nd dimension of the 8d node features of variant A is already `atom.GetDegree()` = metal coordination number**, so the C−A gain cannot mainly come from the coordination number.
+This job runs the 3 WBO statistics of C **split apart**, to pinpoint the source of the gain.
 
-## 变体设计（与已有 A/C/D 共用同一划分，完全配对可比）
+## Variant design (shares the same split with the existing A/C/D, fully paired and comparable)
 
-| 变体 | 节点特征 | 维度 | 测什么 |
+| Variant | Node features | Dimensions | What it measures |
 |---|---|---|---|
-| A（已有，不用重跑）| 8d SMILES | 8d/6d | 基线 |
-| **E（本次）** | 8d **+ nb_cnt**（WBO 有效配位数）| 9d/6d | 配位数的增量贡献 |
-| **F（本次）** | 8d **+ sum_BO + max_BO**（键级大小）| 10d/6d | 键级大小的增量贡献 |
-| C（已有）| 8d + 三项 | 11d/6d | = E ∪ F，验证可加性 |
+| A (existing, no re-run needed) | 8d SMILES | 8d/6d | baseline |
+| **E (this job)** | 8d **+ nb_cnt** (WBO effective coordination number) | 9d/6d | incremental contribution of the coordination number |
+| **F (this job)** | 8d **+ sum_BO + max_BO** (bond-order magnitude) | 10d/6d | incremental contribution of the bond-order magnitude |
+| C (existing) | 8d + the three terms | 11d/6d | = E ∪ F, verifies additivity |
 
-`node3s` 的 3 列顺序为 `[nb_cnt, sum_BO, max_BO]`（见 `rebuild_match_iso.py:219-222`），
-所以 **C = E ∪ F 在构造上严格成立**（已本地验证 `torch.allclose` 通过）。
+The 3 columns of `node3s` are ordered `[nb_cnt, sum_BO, max_BO]` (see `rebuild_match_iso.py:219-222`),
+so **C = E ∪ F holds strictly by construction** (already verified locally, `torch.allclose` passes).
 
-### 三种结果的解读（事先写死，避免事后挑说法）
-- **E ≈ C** → WBO 口径的配位数（含 H）就是关键 → 改写 §2.2 的归因，并说明该量部署不可得
-- **F ≈ C** → 增益来自键级大小（GFN2-xTB 导出的电子结构信息，非拓扑、也非纯键长）→ §2.2 的 "coordination-number interpretation" 需删除
-- **E、F 各占一部分** → 按比例重写归因段
+### Interpretation of the three possible outcomes (fixed in advance to avoid post-hoc framing)
+- **E ≈ C** → the WBO-basis coordination number (including H) is the key → rewrite the attribution in §2.2 and state that this quantity is unavailable at deployment
+- **F ≈ C** → the gain comes from the bond-order magnitude (electronic-structure information derived from GFN2-xTB, neither topological nor purely bond-length) → the "coordination-number interpretation" in §2.2 must be deleted
+- **E and F each contribute a part** → rewrite the attribution paragraph proportionally
 
-## 文件清单
-- `server_train_EF.py` —— 本次新增（由 `server_train_variants.py` 派生，只改 4 处：docstring / VARIANTS / build_variant_graphs 的 npart / node_dim 计算）
-- `new_domain_iso.pt` —— **服务器已有，无需重传**
+## File list
+- `server_train_EF.py` — new in this job (derived from `server_train_variants.py`, only 4 changes: docstring / VARIANTS / the npart / node_dim computation in build_variant_graphs)
+- `new_domain_iso.pt` — **already on the server, no need to re-upload**
 
-## 运行
+## Running
 ```bash
-# 断点续训已内置：ensemble_checkpoint_E_9d6d.pt 存在即跳过已训模型
+# Checkpoint resume is built in: if ensemble_checkpoint_E_9d6d.pt exists, already-trained models are skipped
 nohup python server_train_EF.py > train_EF.log 2>&1 &
-tail -5 train_EF.log      # 看进度
+tail -5 train_EF.log      # check progress
 ```
-- 预计 **18 个模型（2 变体 × 3-fold × 3-seed），约 5–6 小时**（单模型 17–20 min）
-- 与 A/C/D 使用完全相同的划分（RandomState(42)：13,556 测试 + 3-fold CV）、相同的金属 sqrt 权重、相同的训练协议（AMP / bs=256 / 200 ep / 早停 40 / 余弦重启）
+- Estimated **18 models (2 variants × 3-fold × 3-seed), about 5-6 hours** (17-20 min per model)
+- Uses exactly the same split as A/C/D (RandomState(42): 13,556 test + 3-fold CV), the same metal sqrt weighting, and the same training protocol (AMP / bs=256 / 200 ep / early stopping 40 / cosine restarts)
 
-## 产出（跑完全部拷回本地 `d:\ml\chem_ml5\`）
+## Outputs (copy everything back to the local `d:\ml\chem_ml5\` after the run)
 ```
 ensemble_checkpoint_E_9d6d.pt     ensemble_checkpoint_F_10d6d.pt
 results_E_9d6d.json               results_F_10d6d.json
@@ -42,13 +42,13 @@ test_preds_E_9d6d.npz             test_preds_F_10d6d.npz
 train_EF.log
 ```
 
-## 本地已完成的冒烟测试（CPU 上执行，服务器无风险）
-- 数据加载 N=90,377 ✓；划分 13,556 / 76,821 ✓
-- E 拼接后 node_dim=9、F 拼接后 node_dim=10 ✓；`C == E ∪ F` 断言通过 ✓
-- 前向传播输出形状 (6, 8) ✓，参数量 1.310 M（与原 A 模型一致）✓
-- 唯一未在本地执行的是 CUDA 相关代码（本地无 GPU），服务器上正常运行
+## Smoke tests already completed locally (run on CPU, no risk to the server)
+- Data loading N=90,377 ✓; split 13,556 / 76,821 ✓
+- node_dim=9 after E concatenation, node_dim=10 after F concatenation ✓; the `C == E ∪ F` assertion passes ✓
+- Forward-pass output shape (6, 8) ✓, parameter count 1.310 M (identical to the original A model) ✓
+- The only part not executed locally is the CUDA-related code (no GPU locally); it runs normally on the server
 
-## 跑完后本地要做的分析
-1. `test_preds_{E,F}.npz` 与 A/C 逐性质配对 t 检验（9 成员层，协议同前）
-2. 分解表：A / E / F / C 四行的逐性质 R² 与 Δ
-3. 若结论改变 §2.2、§3.1、§3.3、摘要、结论的归因表述 → 出第四轮修改脚本
+## Analysis to do locally after the run
+1. Per-property paired t-test of `test_preds_{E,F}.npz` against A/C (9-member level, same protocol as before)
+2. Decomposition table: per-property R² and Δ for the four rows A / E / F / C
+3. If the conclusion changes the attribution wording in §2.2, §3.1, §3.3, the abstract or the conclusions → produce the round-4 revision script

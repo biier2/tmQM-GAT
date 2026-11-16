@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""只读核对：13,556 vs 13,557 测试集口径（代理报告项3/5 的警示项）。
-比对 four sources：new_domain_iso.pt / ensemble_split_new.npz / test_preds_A_8d6d.npz / test_preds_DimeNet.npz。
-另列 server_package 目录，找 README_dimenet_fixed.md。"""
+"""Read-only check: 13,556 vs 13,557 test-set definition (a warning item from agent report items 3/5).
+Compares four sources: new_domain_iso.pt / ensemble_split_new.npz / test_preds_A_8d6d.npz / test_preds_DimeNet.npz.
+Also lists the server_package directory and looks for README_dimenet_fixed.md."""
 import os
 import sys
 
@@ -44,13 +44,13 @@ for name in ('test_preds_DimeNet.npz', 'test_preds_D_11d23d.npz', 'test_preds_Di
             t = np.asarray(z['te_idx'])
             print('  te_idx len =', len(t), '| min/max =', t.min(), t.max())
     else:
-        print('\n%s 不存在' % name)
+        print('\n%s does not exist' % name)
 
-# 集合关系
+# Set relations
 s_iso = set(te_iso.tolist())
 s_sp = set(te_split.tolist())
 s_a = set(te_a.tolist())
-print('\n集合关系：')
+print('\nSet relations:')
 print('  A_te == split_new_te :', s_a == s_sp)
 print('  A_te == iso_te       :', s_a == s_iso)
 print('  split_new ⊂ iso      :', s_sp <= s_iso, '| iso-split =', sorted(s_iso - s_sp)[:5], '| split-iso =', sorted(s_sp - s_iso)[:5])
@@ -58,8 +58,8 @@ print('  A ⊂ iso              :', s_a <= s_iso, '| iso-A =', sorted(s_iso - s_
 
 sp = os.path.join(R, 'server_package')
 if os.path.isdir(sp):
-    print('\nserver_package 目录：')
+    print('\nserver_package directory:')
     for f in sorted(os.listdir(sp)):
         print('  ', f)
 qq = os.path.join(R, 'README_dimenet_fixed.md')
-print('\nREADME_dimenet_fixed.md 在根目录:', os.path.exists(qq))
+print('\nREADME_dimenet_fixed.md in the root directory:', os.path.exists(qq))

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""id12b · 双栈全量 SMILES 解析（同一 CSV，单个 rdkit 版本跑一遍）
-用法: python dual_parse_one.py <tag>     # tag ∈ base2026 | rd2024
-输出: _recon_20261016\parse_<tag>.json + parse_<tag>.npz
-字段: status(0 ok/1 empty/2 parse_none/3 sanitize_err/4 exc), tm29, tm30(=tm29+La), natoms, la
+"""id12b · dual-stack full SMILES parsing (same CSV, run once per rdkit version)
+Usage: python dual_parse_one.py <tag>     # tag ∈ base2026 | rd2024
+Output: _recon_20261016\parse_<tag>.json + parse_<tag>.npz
+Fields: status(0 ok/1 empty/2 parse_none/3 sanitize_err/4 exc), tm29, tm30(=tm29+La), natoms, la
 """
 import sys, os, json, time
 import numpy as np, pandas as pd

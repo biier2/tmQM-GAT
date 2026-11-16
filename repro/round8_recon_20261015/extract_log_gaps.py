@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-"""只读：从 D:\\ml\\log 的 Gaussian 日志提取最终 SP 作业的
-Alpha/Beta HOMO-LUMO gap（eV）、电荷、多重度、route 行。
-输出 log_gaps.txt（批注 43 / Table S16 对账用）。
+"""Read-only: extract from the Gaussian logs in D:\\ml\\log the final SP job's
+Alpha/Beta HOMO-LUMO gap (eV), charge, multiplicity and route line.
+Output log_gaps.txt (for reconciling comment 43 / Table S16).
 
-Gaussian Pop=Full 输出排布（每行与续行都重复带前缀）：
-  Alpha occ. block（低能→HOMO） → Alpha virt. block（LUMO→高能）
-  [UHF 再加] Beta occ. block → Beta virt. block
-取"最后一次打印"：最后一个 Alpha-occ 行的末值 = HOMO(α)；
-其后的第一条 Alpha-virt 行首值 = LUMO(α)；Beta 同理。
+Gaussian Pop=Full output layout (the prefix is repeated on every line and continuation line):
+  Alpha occ. block (low energy→HOMO) → Alpha virt. block (LUMO→high energy)
+  [for UHF additionally] Beta occ. block → Beta virt. block
+Take the "last printed": the last value of the last Alpha-occ line = HOMO(α);
+the first value of the first Alpha-virt line after it = LUMO(α); likewise for Beta.
 """
 import os
 import re
@@ -25,7 +25,7 @@ for fn in sorted(os.listdir(LOGDIR)):
         continue
     txt = open(os.path.join(LOGDIR, fn), 'r', encoding='utf-8', errors='replace').read()
 
-    seq = []  # (pos, spin, kind, vals) 按出现顺序
+    seq = []  # (pos, spin, kind, vals) in order of appearance
     for m in re.finditer(r'^\s*(Alpha|Beta)\s+(occ|virt)\.\s+eigenvalues\s+--(.*)$',
                          txt, flags=re.M):
         vals = [float(x) for x in re.findall(r'-?\d+\.\d{5}', m.group(3))]
@@ -66,7 +66,7 @@ for fn in sorted(os.listdir(LOGDIR)):
             lines_out.append('  %s HOMO=%.5f LUMO=%.5f -> gap=%.4f eV' % (spin, h, l, g))
     if gaps:
         gmin = min(v[2] for v in gaps.values())
-        lines_out.append('  >>> 报告 gap（开壳层取小）= %.4f eV' % gmin)
+        lines_out.append('  >>> reported gap (smaller one for open shell) = %.4f eV' % gmin)
     lines_out.append('')
 
 open(OUT, 'w', encoding='utf-8').write('\n'.join(lines_out))

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""RF/XGBoost 基准重评 — 新域 (图同构重建) 13,556 测试集口径, 本地 CPU
-训练 = new_domain_iso.pt cv_idx (76,821); 测试 = te_idx (13,556)
-ECFP4 (radius 2, 2048-bit); 每性质独立: RF 500×depth15, XGB 500×depth8 (旧基准原配置, seed 42)
-输出 benchmark_reval_new_results.json
+"""RF/XGBoost baseline re-evaluation — new domain (graph-isomorphism rebuild), 13,556 test-set
+basis, local CPU. Train = new_domain_iso.pt cv_idx (76,821); test = te_idx (13,556).
+ECFP4 (radius 2, 2048-bit); per-property independent: RF 500×depth15, XGB 500×depth8
+(original configuration of the old baseline, seed 42). Outputs benchmark_reval_new_results.json
 """
 import sys, time, json
 sys.stdout.reconfigure(encoding='utf-8')
@@ -30,7 +30,7 @@ SML = y['SMILES'].tolist()
 X_PATH = 'ecfp_new_domain.npy'
 if __import__('os').path.exists(X_PATH):
     X = np.load(X_PATH)
-    print(f'加载缓存指纹 {X_PATH}: {X.shape}', flush=True)
+    print(f'Loading cached fingerprints {X_PATH}: {X.shape}', flush=True)
 else:
     X = np.zeros((N, 2048), dtype=np.float32)
     for k, i in enumerate(range(N)):
@@ -45,7 +45,7 @@ else:
         if (k + 1) % 20000 == 0:
             print(f'  ECFP {k+1}/{N} [{time.time()-t0:.0f}s]', flush=True)
     np.save(X_PATH, X)
-    print(f'指纹已存 {X_PATH} [{time.time()-t0:.0f}s]', flush=True)
+    print(f'Fingerprints saved to {X_PATH} [{time.time()-t0:.0f}s]', flush=True)
 
 results = {}
 for model_name, make in [
@@ -70,4 +70,4 @@ for model_name, make in [
     print(f'{model_name} mean R² = {res["mean_r2"]:.4f}', flush=True)
 
 json.dump(results, open('benchmark_reval_new_results.json', 'w'), indent=2)
-print(f'SAVED benchmark_reval_new_results.json [{time.time()-t0:.0f}s 总]')
+print(f'SAVED benchmark_reval_new_results.json [{time.time()-t0:.0f}s total]')

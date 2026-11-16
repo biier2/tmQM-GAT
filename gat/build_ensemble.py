@@ -11,42 +11,42 @@ def add_code(src, cid):
                   "source": [l + '\n' for l in src.split('\n')], "id": cid})
 
 # ============================================================
-# Cell 1: 简介
+# Cell 1: Introduction
 # ============================================================
 add_md("""# XYZ GNN Ensemble + Cross-Validation
 
-## 目的
-回应审稿人：单模型不可靠 → 多模型 ensemble 报告均值 ± 标准差
+## Purpose
+Response to the reviewer: a single model is unreliable → report the mean ± std over a multi-model ensemble
 
-## 设计
+## Design
 ```
-                     全量数据 (95,152 complexes)
+               Full dataset (95,152 complexes)
                               │
                     ┌─────────┼─────────┐
                     │         │         │
-                 训练集 (85%)          测试集 (15%)
+              Train set (85%)         Test set (15%)
               ~80,879 complexes     ~14,273 complexes
-                    │               (固定, 不参与CV)
+                    │               (fixed, not in CV)
           ┌─────────┼─────────┐
           │         │         │
        Fold 0    Fold 1    Fold 2
-      (train 2/3, val 1/3, 各跑3个seed)
+      (train 2/3, val 1/3, 3 seeds each)
 
-总计: 3 folds × 3 seeds = 15 个模型
-测试: 9模型 ensemble 预测 → 均值 ± 标准差
+Total: 3 folds × 3 seeds = 15 models
+Test: 9-model ensemble predictions → mean ± std
 ```
 
-## 模型配置
-- XYZ GNN: 12头 GAT × 384d × 5层
-- 23维边特征 (SMILES键 + DFT距离16RBF + Mayer BO)
-- 自动金属加权
-- AMP混合精度, CosineWarmRestarts, 早停 patience=40
+## Model configuration
+- XYZ GNN: 12-head GAT × 384d × 5 layers
+- 23-d edge features (SMILES bonds + 16 DFT-distance RBF + Mayer BO)
+- Automatic metal weighting
+- AMP mixed precision, CosineWarmRestarts, early stopping patience=40
 
-## 预期时间 (5070 Ti)
-- 每模型 ~35min × 15 = ~9小时""", "cv_intro")
+## Expected time (5070 Ti)
+- ~35 min per model × 15 = ~9 hours""", "cv_intro")
 
 # ============================================================
-# Cell 2: 导入 + GPU配置 + 数据加载
+# Cell 2: Imports + GPU configuration + data loading
 # ============================================================
 add_code("""import numpy as np, pandas as pd, time, gzip, os, sys, json
 import matplotlib.pyplot as plt, warnings
@@ -58,7 +58,7 @@ plt.rcParams['axes.unicode_minus'] = False
 import torch, torch.nn as nn, torch.optim as optim
 from torch.amp import autocast, GradScaler
 
-# GPU配置
+# GPU configuration
 torch.set_float32_matmul_precision('high')
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.benchmark = True
@@ -73,7 +73,7 @@ if torch.cuda.is_available():
 from sklearn.metrics import mean_absolute_error, r2_score
 from tqdm import tqdm
 
-# ===== 加载目标值 =====
+# ===== Load target values =====
 df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')
 df_y = df_y.rename(columns={
     'HL_Gap': 'gap', 'HOMO_Energy': 'homo', 'LUMO_Energy': 'lumo',
@@ -87,10 +87,10 @@ print(f'Loaded {len(df_y)} complexes, {len(targets)} targets')
 
 
 # ============================================================
-# Cell 3: XYZ+BO解析 + SMILES建图 (复用tmQM_Fe_XYZ)
+# Cell 3: XYZ+BO parsing + SMILES graph construction (reuses tmQM_Fe_XYZ)
 # ============================================================
 add_code("""print('='*60)
-print('Step 1: XYZ+BO解析 + SMILES建图 (全量95k)')
+print('Step 1: XYZ+BO parsing + SMILES graph construction (full 95k)')
 print('='*60)
 
 import gzip
@@ -170,7 +170,7 @@ for part in [1, 2, 3]:
 
 print(f'Total: {len(all_m)} TM complexes parsed')
 
-# ===== SMILES建图 (复用tmQM_Fe_XYZ Cell 4) =====
+# ===== SMILES graph construction (reuses tmQM_Fe_XYZ Cell 4) =====
 ELEMENT_DATA_SM = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),44:(5,8),45:(5,9),46:(5,10),47:(5,11),48:(5,12),53:(5,17),72:(6,4),73:(6,5),74:(6,6),75:(6,7),76:(6,8),77:(6,9),78:(6,10),79:(6,11),80:(6,12)}
 BOND_TYPES_SM = [1,2,3,12]; B2I_SM = {b:i for i,b in enumerate(BOND_TYPES_SM)}; N_BT_SM = 4
 rbf_c = np.linspace(1.0, 5.0, 16); rbf_sigma = 0.2
@@ -245,7 +245,7 @@ for idx, m in enumerate(tqdm(all_m, desc='Graphs')):
 y_all = torch.tensor(y_vals, dtype=torch.float32)
 print(f'Built {len(graphs):,} graphs ({failed} failed)')
 
-# NaN过滤
+# NaN filtering
 mask = ~(torch.isnan(y_all).any(dim=1) | torch.isinf(y_all).any(dim=1))
 graphs = [g for i, g in enumerate(graphs) if mask[i]]
 y_all = y_all[mask]; atoms_filt = [a for i, a in enumerate(atoms_filt) if mask[i]]
@@ -254,10 +254,10 @@ print(f'After NaN removal: {len(graphs):,} complexes')
 
 
 # ============================================================
-# Cell 4: 模型定义 + 工具函数
+# Cell 4: Model definition + utility functions
 # ============================================================
 add_code("""print('='*60)
-print('Step 2: 模型定义')
+print('Step 2: Model definition')
 print('='*60)
 
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12; DROPOUT = 0.10
@@ -348,30 +348,30 @@ print(f'HIDDEN={HIDDEN} LAYERS={N_LAYERS} HEADS={GAT_HEADS} DROPOUT={DROPOUT}')
 
 
 # ============================================================
-# Cell 5: 数据划分 (固定测试集 + 5-fold CV)
+# Cell 5: Data split (fixed test set + 5-fold CV)
 # ============================================================
 add_code("""print('='*60)
-print('Step 3: 数据划分 (固定测试集 15% + 5-fold CV on 85%)')
+print('Step 3: Data split (fixed 15% test set + 5-fold CV on 85%)')
 print('='*60)
 
-# 固定测试集 15%
+# Fixed 15% test set
 idx_all = np.random.RandomState(42).permutation(len(graphs))
 n_test = int(len(graphs) * 0.15)
-te_idx = idx_all[:n_test]  # 前15%固定为测试集
-cv_idx = idx_all[n_test:]  # 后85%做CV
+te_idx = idx_all[:n_test]  # first 15% fixed as the test set
+cv_idx = idx_all[n_test:]  # remaining 85% used for CV
 
 print(f'Total: {len(graphs):,}')
 print(f'Fixed test set: {len(te_idx):,} (15%)')
 print(f'CV pool: {len(cv_idx):,} (85%)')
 
-# 5-fold划分
+# 5-fold split
 from sklearn.model_selection import KFold
 kf = KFold(n_splits=5, shuffle=True, random_state=42)
 fold_splits = list(kf.split(cv_idx))
 for fi, (tr_rel, va_rel) in enumerate(fold_splits):
     print(f'  Fold {fi}: train={len(tr_rel):,}, val={len(va_rel):,}')
 
-# 保存划分
+# Save the split
 np.savez('data_tmQM/paper_domain_vA/ensemble_split.npz',
     te_idx=te_idx, cv_idx=cv_idx,
     fold_0_train=cv_idx[fold_splits[0][0]], fold_0_val=cv_idx[fold_splits[0][1]],
@@ -382,20 +382,20 @@ print('Split saved to ensemble_split.npz')
 
 
 # ============================================================
-# Cell 6: 训练函数
+# Cell 6: Training function
 # ============================================================
 add_code("""print('='*60)
-print('Step 4: 定义训练函数 + GPU预加载')
+print('Step 4: Define the training function + GPU preload')
 print('='*60)
 
-# ===== 一次性上传所有图到GPU (避免每个模型重复上传) =====
+# ===== Upload all graphs to the GPU once (avoids re-uploading for every model) =====
 print('Uploading all graphs to GPU (one-time)...')
 graphs_gpu = []
 for g in tqdm(graphs, desc='GPU upload'):
     graphs_gpu.append({k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in g.items()})
 y_all_gpu = y_all.to(device)
 
-# ===== 创建绝对索引的金属权重 (每个样本一个权重) =====
+# ===== Create metal weights in absolute indexing (one weight per sample) =====
 print('Computing per-sample metal weights...')
 mc = Counter()
 for atoms in atoms_filt:
@@ -412,7 +412,7 @@ for i, atoms in enumerate(atoms_filt):
 print(f'Sample weights: mean={sample_weights.mean().item():.2f}, max={sample_weights.max().item():.1f}')
 
 def train_one_model(train_idx, val_idx, seed, fold_name):
-    '''训练单个模型, 返回最佳checkpoint和验证集指标'''
+    '''Train a single model, returning the best checkpoint and the validation metrics'''
     print(f'  [DEBUG] seed={seed}, device={device}', flush=True)
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -425,7 +425,7 @@ def train_one_model(train_idx, val_idx, seed, fold_name):
     crit = nn.MSELoss(reduction='none')
     scaler = GradScaler('cuda')
 
-    # 归一化 (基于训练集)
+    # Normalisation (based on the training set)
     print(f'  [DEBUG] Normalizing targets...', flush=True)
     y_tr = y_all_gpu[train_idx]
     y_mean_local = y_tr.mean(dim=0)
@@ -444,7 +444,7 @@ def train_one_model(train_idx, val_idx, seed, fold_name):
             bidx = train_idx[pos].tolist()
             bg = [graphs_gpu[i] for i in bidx]
             by = y_norm[bidx]
-            w = sample_weights[bidx]  # 按batch索引取权重
+            w = sample_weights[bidx]  # take weights by batch index
 
             batched, batch_idx = collate_graphs(bg)
             opt.zero_grad()
@@ -482,7 +482,7 @@ def train_one_model(train_idx, val_idx, seed, fold_name):
     model.load_state_dict(best_state)
     model.eval()
 
-    # 验证集反归一化评估
+    # Validation evaluation after denormalisation
     with torch.no_grad():
         vp_full = []
         for s in range(0, len(val_idx), bs):
@@ -508,10 +508,10 @@ print(f'Training function ready (graphs on GPU: {torch.cuda.memory_allocated()/1
 
 
 # ============================================================
-# Cell 7: 执行 5-fold × 3-seed 训练
+# Cell 7: Run the 5-fold × 3-seed training
 # ============================================================
 add_code("""print('='*60)
-print('Step 5: 5-fold × 3-seed 训练 (共15个模型)')
+print('Step 5: 5-fold × 3-seed training (15 models in total)')
 print('='*60)
 
 SEEDS = [42, 123, 456]
@@ -524,7 +524,7 @@ t_start = time.time()
 model_count = 0
 
 for fold_idx in range(FOLDS):
-    tr_rel = fold_splits[fold_idx][0]  # 相对cv_idx的索引
+    tr_rel = fold_splits[fold_idx][0]  # indices relative to cv_idx
     va_rel = fold_splits[fold_idx][1]
     tr_abs = cv_idx[tr_rel]; va_abs = cv_idx[va_rel]
 
@@ -552,14 +552,14 @@ for fold_idx in range(FOLDS):
             traceback.print_exc()
             results_log.append({'fold': fold_idx, 'seed': seed, 'error': str(e)})
 
-    # 保存中间结果
+    # Save intermediate results
     torch.save({'models': all_models, 'log': results_log}, 'ensemble_checkpoint.pt')
     print(f'\\nCheckpoint saved after fold {fold_idx} ({len(all_models)}/{model_count} models)')
 
 total_time = (time.time() - t_start) / 60
 print(f'\\nTraining complete: {len(all_models)}/15 models in {total_time:.0f}min')
 
-# 打印CV结果
+# Print CV results
 print(f'\\n{"="*60}')
 print('Cross-Validation Summary')
 print(f'{"="*60}')
@@ -576,19 +576,19 @@ if val_means:
 
 
 # ============================================================
-# Cell 8: 测试集 Ensemble 评估
+# Cell 8: Test-set ensemble evaluation
 # ============================================================
 add_code("""print('='*60)
-print('Step 6: 测试集 Ensemble 评估 (9模型)')
+print('Step 6: Test-set ensemble evaluation (9 models)')
 print('='*60)
 
 bs = 128
-# 复用Cell 4已上传的graphs_gpu + y_all_gpu (不再重复上传)
+# Reuse the graphs_gpu + y_all_gpu already uploaded in Cell 4 (no re-upload)
 y_test_true = y_all[te_idx]
 
-# 收集每个模型的测试集预测
+# Collect each model's test-set predictions
 if len(all_models) == 0:
-    # 尝试从checkpoint恢复
+    # Try to restore from the checkpoint
     if os.path.exists('ensemble_checkpoint.pt'):
         print('Loading from ensemble_checkpoint.pt...')
         ckpt = torch.load('ensemble_checkpoint.pt', map_location='cpu')
@@ -620,19 +620,19 @@ for mi, mdata in enumerate(all_models):
             preds.append(p)
     preds = torch.cat(preds, dim=0)
 
-    # 反归一化 (用该模型的训练集统计量)
+    # Denormalise (using that model's training-set statistics)
     preds_orig = preds * mdata['y_std'].unsqueeze(0) + mdata['y_mean'].unsqueeze(0)
     all_test_preds.append(preds_orig.numpy())
 
 if len(all_test_preds) == 0:
-    # 尝试从已有的 xyz_best.pt 做单模型评估作为fallback
+    # Try single-model evaluation from the existing xyz_best.pt as a fallback
     if os.path.exists('xyz_best.pt'):
         print('No CV models found. Falling back to xyz_best.pt for single-model evaluation...')
         fallback_state = torch.load('xyz_best.pt', map_location='cpu')
         model = XYZ_GNN().to(device)
         model.load_state_dict(fallback_state, strict=False)
         model.eval()
-        # 需要训练集的归一化统计量
+        # normalisation statistics of the training set are needed
         y_tr = y_all[tr_idx] if 'tr_idx' in dir() else y_all[:int(len(y_all)*0.7)]
         y_mean_fb = y_tr.mean(dim=0)
         y_std_fb = y_tr.std(dim=0).clamp(min=1e-8)
@@ -658,11 +658,11 @@ if len(all_test_preds) == 0:
 all_preds = np.stack(all_test_preds, axis=0)  # [n_models, n_test, n_targets]
 print(f'Stacked predictions: {all_preds.shape}')
 
-# Ensemble统计
+# Ensemble statistics
 ensemble_mean = all_preds.mean(axis=0)  # [n_test, n_targets]
 ensemble_std = all_preds.std(axis=0)    # [n_test, n_targets]
 
-# 逐性质评估
+# Per-property evaluation
 print(f'\\n{"="*80}')
 print('ENSEMBLE TEST SET RESULTS (15 models: 5-fold × 3-seed)')
 print(f'{"="*80}')
@@ -673,15 +673,15 @@ ensemble_results = []
 for i, prop in enumerate(targets):
     yt = y_test_true[:, i].numpy()
 
-    # 每个模型的R²和MAE
+    # R² and MAE of each model
     per_model_r2 = [r2_score(yt, all_preds[m, :, i]) for m in range(len(all_models))]
     per_model_mae = [mean_absolute_error(yt, all_preds[m, :, i]) for m in range(len(all_models))]
 
-    # Ensemble的R²和MAE
+    # R² and MAE of the ensemble
     ens_r2 = r2_score(yt, ensemble_mean[:, i])
     ens_mae = mean_absolute_error(yt, ensemble_mean[:, i])
 
-    # Ensemble的平均标准差 (预测不确定性)
+    # Mean standard deviation of the ensemble (predictive uncertainty)
     avg_ens_std = ensemble_std[:, i].mean()
 
     print(f'{prop:16s} {np.mean(per_model_r2):8.4f} {np.std(per_model_r2):8.4f} '
@@ -699,7 +699,7 @@ ens_df = pd.DataFrame(ensemble_results)
 print(f'\\nEnsemble Mean R²: {ens_df["Ensemble_R2"].mean():.4f}')
 print(f'Single-model Mean R²: {ens_df["Mean_R2"].mean():.4f} ± {ens_df["Std_R2"].mean():.4f}')
 
-# 保存结果
+# Save results
 ens_df.to_csv('ensemble_results.csv', index=False)
 np.savez('ensemble_predictions.npz', mean=ensemble_mean, std=ensemble_std,
          per_model=all_preds, y_true=y_test_true.numpy(), te_idx=te_idx)
@@ -708,13 +708,13 @@ print('Results saved to ensemble_results.csv + ensemble_predictions.npz')
 
 
 # ============================================================
-# Cell 9: 可视化
+# Cell 9: Visualisation
 # ============================================================
 add_code("""import matplotlib.pyplot as plt
 
 fig, axes = plt.subplots(2, 2, figsize=(16, 12))
 
-# (a) R² 均值 ± 标准差
+# (a) R² mean ± std
 ax = axes[0, 0]
 x = np.arange(len(targets))
 means = ens_df['Mean_R2'].values
@@ -735,7 +735,7 @@ ax.set_xticks(x2); ax.set_xticklabels(targets, fontsize=9)
 ax.set_ylabel('R²'); ax.set_title('Ensemble vs Single-Model R²')
 ax.legend(); ax.grid(axis='y', alpha=0.3)
 
-# (c) 各模型Val R²分布
+# (c) Val R² distribution of each model
 ax = axes[1, 0]
 val_data = []
 for r in results_log:
@@ -749,7 +749,7 @@ ax.axhline(y=np.mean(val_data), color='red', linestyle='--', label=f'Mean={np.me
 ax.set_ylabel('Validation Mean R²'); ax.set_title('Model-to-Model Variation')
 ax.legend(); ax.grid(axis='y', alpha=0.3)
 
-# (d) 预测不确定性 vs 误差
+# (d) Predictive uncertainty vs error
 ax = axes[1, 1]
 for i, prop in enumerate(targets):
     yt = y_test_true[:, i].numpy()
@@ -762,43 +762,43 @@ ax.legend(ncol=2, fontsize=7, markerscale=3); ax.grid(True, alpha=0.3)
 plt.suptitle('XYZ GNN Ensemble + Cross-Validation Results', fontsize=15, fontweight='bold', y=1.01)
 plt.tight_layout(); plt.show()
 
-# 关键发现
+# Key findings
 print('\\n' + '='*60)
-print('关键发现')
+print('Key findings')
 print('='*60)
 print(f'1. CV Mean R²: {np.mean(val_means):.4f} ± {np.std(val_means):.4f}')
 print(f'2. Ensemble R²: {ens_df["Ensemble_R2"].mean():.4f}')
 print(f'3. Single Model R²: {ens_df["Mean_R2"].mean():.4f} ± {ens_df["Std_R2"].mean():.4f}')
 print(f'4. Ensemble vs Single improvement: {ens_df["Ensemble_R2"].mean() - ens_df["Mean_R2"].mean():+.4f}')
-print(f'5. 模型间稳定性 (R² std): {ens_df["Std_R2"].mean():.4f} (越小越稳定)')
+print(f'5. Inter-model stability (R² std): {ens_df["Std_R2"].mean():.4f} (smaller is more stable)')
 """, "cv_viz")
 
 # ============================================================
-# Cell 10: 讨论
+# Cell 10: Discussion
 # ============================================================
-add_md("""## Ensemble + CV 结论
+add_md("""## Ensemble + CV conclusions
 
-### 与 tmGNN-XAI 的对比
-| 指标 | tmGNN-XAI | 本工作 |
+### Comparison with tmGNN-XAI
+| Metric | tmGNN-XAI | This work |
 |------|:---:|:---:|
-| CV方案 | 3-repeat × 5-fold (15模型) | 5-fold × 3-seed (9模型) |
-| Ensemble | Top-5 按val loss选 | 全部9模型平均 |
-| 不确定性 | CV (ensemble标准差) | CV (ensemble标准差) |
-| 物理约束 | ✅ HL-Gap = LUMO - HOMO | ❌ 待加入 (1.5) |
+| CV scheme | 3-repeat × 5-fold (15 models) | 5-fold × 3-seed (9 models) |
+| Ensemble | Top-5 selected by val loss | Average of all 9 models |
+| Uncertainty | CV (ensemble std) | CV (ensemble std) |
+| Physical constraint | ✅ HL-Gap = LUMO - HOMO | ❌ To be added (1.5) |
 
-### 对论文的价值
-1. **R² ± std 报告**: 回应审稿人R2对可复现性的质疑
-2. **Ensemble提升**: 量化ensemble相比单模型的增益
-3. **不确定性估计**: 为后续信任框架(Scenario A/B)提供基础
-4. **模型稳定性**: std小 → 架构设计合理, 非运气好
+### Value for the manuscript
+1. **R² ± std reporting**: responds to reviewer R2's concern about reproducibility
+2. **Ensemble gain**: quantifies the gain of the ensemble over a single model
+3. **Uncertainty estimation**: provides the basis for the later trust framework (Scenario A/B)
+4. **Model stability**: small std → the architecture is well designed, not a lucky draw
 
-### 局限
-- 测试集只有15%，CV只在training+val上做
-- 9模型比tmGNN-XAI的15模型少，但3-seed已够评估方差
+### Limitations
+- The test set is only 15%, and CV is run only on training+val
+- 9 models is fewer than tmGNN-XAI's 15, but 3 seeds suffice to assess the variance
 """, "cv_discussion")
 
 # ============================================================
-# 写入 notebook
+# Write the notebook
 # ============================================================
 nb = {"nbformat": 4, "nbformat_minor": 5,
       "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},

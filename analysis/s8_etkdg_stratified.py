@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""S8: ETKDG+MMFF 成功率按金属族/金属×配位数分层（全量 tmQM SMILES，multiprocessing）
-输出 s8_etkdg_stratified.json + markdown 表。不涉及任何模型训练。"""
+"""S8: ETKDG+MMFF success rate stratified by metal group / metal x coordination number (full tmQM SMILES, multiprocessing)
+Outputs s8_etkdg_stratified.json + markdown table. No model training involved."""
 import pandas as pd
 import json
 from rdkit import Chem
@@ -33,7 +33,7 @@ def try_etkdg(args):
               if a.GetAtomicNum() in TM_METALS]
     if not metals:
         return (idx, None, None, 'no_tm')
-    z, cn = metals[0]  # 第一个 TM 金属及其配位数（重原子连接数）
+    z, cn = metals[0]  # first TM metal and its coordination number (number of heavy-atom connections)
     mol = Chem.AddHs(mol)
     try:
         st = AllChem.EmbedMolecule(mol, randomSeed=42, maxAttempts=200)
@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
     out = {'n_valid': n_valid, 'n_success': n_success,
            'success_rate_pct': round(n_success / n_valid * 100, 2)}
-    # 按金属族 × 配位数桶
+    # By metal group x coordination-number bucket
     group_cn = {}
     for (g, sym, cn), c in stats.items():
         key = (g, cn)
@@ -91,7 +91,7 @@ if __name__ == '__main__':
                                                   'rate_pct': round(rate, 1)}
             print(f'{g:>4s} {cn:>4d} {n:>7d} {s:>7d} {rate:6.1f}%')
 
-    # 按金属
+    # By metal
     out['by_metal'] = {}
     print('\n=== Success rate by metal (N>=100) ===')
     for g in ['3d', '4d', '5d']:

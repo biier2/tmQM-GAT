@@ -6,7 +6,7 @@ Output: results/fig4_physics_hd.png"""
 import os
 import sys
 try:
-    sys.stdout.reconfigure(encoding='utf-8')  # Windows GBK 控制台兜底; Linux 无害
+    sys.stdout.reconfigure(encoding='utf-8')  # fallback for the Windows GBK console; harmless on Linux
 except Exception:
     pass
 import numpy as np
@@ -14,9 +14,9 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-# ============ 布局参数 (与提交版图 4 一致, notebook 大画布风格) ============
+# ============ Layout parameters (identical to submitted Fig. 4, notebook large-canvas style) ============
 DPI = 600
-FIGW, FIGH = 22.0, 15.0        # 2×3 六面板, 每面板约 7.3in 宽
+FIGW, FIGH = 22.0, 15.0        # 2×3 six panels, each about 7.3 in wide
 FS_BASE, FS_TITLE, FS_AXLABEL = 13, 13, 13
 FS_TICK, FS_LEGEND, FS_LEGEND_E, FS_SUPTITLE = 12, 12, 11, 16
 # =============================================================================
@@ -98,7 +98,7 @@ out = os.path.join(HERE, 'results', 'fig4_physics_hd.png')
 plt.savefig(out, dpi=DPI, bbox_inches='tight', facecolor='white')
 print(f'fig4 saved: {out}')
 
-# 验证数字 vs 正文图注（Main P104）
+# Verify numbers vs the main-text caption (Main P104)
 print(f'[verify] (a) R²={r2_xyz_gap:.4f} (caption: 1.000)')
 print(f'[verify] (b) mean={xyz_results["deviation"].mean()*1000:.3f} mHa (caption: 0.100)')
 print(f'[verify] (c) mean={smiles_results["deviation"].mean()*1000:.3f} mHa (caption: 0.219)')

@@ -1,4 +1,4 @@
-"""LEGACY: 验证旧 ablation 公式（30k XYZ 抽样）是否退化 — 保留作历史记录。
+"""LEGACY: verify whether the old ablation formula (30k XYZ sample) is degenerate -- kept as a historical record.
 
 This is the original script used during the ablation development. It parses the
 public tmQM XYZ archives under ``data_tmQM/local_vB/`` and evaluates the
@@ -10,7 +10,7 @@ cohort uses ``sqrt(N/n_m)`` clipped to [0.5, 3.0]; that cohort is verified by
 import numpy as np
 from collections import Counter
 
-# 复用与 ablation_full.ipynb 相同的数据加载逻辑
+# Reuse the same data-loading logic as ablation_full.ipynb
 import pandas as pd
 df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')
 
@@ -31,7 +31,7 @@ def is_TM(z):
 import gzip
 
 def parse_atoms_only(xyz_p):
-    """只提取原子序数列表，不解析坐标和BO"""
+    """Extract only the atomic-number list, without parsing coordinates or BO"""
     atoms_list = []
     with gzip.open(xyz_p, "rt") as f:
         blocks = f.read().strip().split(chr(10))
@@ -72,7 +72,7 @@ perm = rng.permutation(len(all_atoms))[:N_SAMPLE]
 sampled_atoms = [all_atoms[i] for i in perm]
 
 # ============================================================
-# 当前公式 (与 ablation_full.ipynb 完全一致)
+# Current formula (exactly consistent with ablation_full.ipynb)
 # ============================================================
 print("\n" + "="*60)
 print("CURRENT FORMULA: w = max_m min(5.0, N_total/(n_m+1))")
@@ -87,7 +87,7 @@ for atoms in sampled_atoms:
 total_c = len(sampled_atoms)
 weight_map_current = {z: min(5.0, total_c/(c+1)) for z, c in mc.items()}
 
-# 统计 weight 分布
+# Summarise the weight distribution
 weights_current = []
 for atoms in sampled_atoms:
     w = max((weight_map_current.get(z, 1.0) for z in set(atoms) if z >= 21), default=1.0)
@@ -115,7 +115,7 @@ else:
     print("\n  Formula produces meaningful variation.")
 
 # ============================================================
-# 修正公式建议
+# Suggested corrected formula
 # ============================================================
 print("\n" + "="*60)
 print("PROPOSED FIX: w_m = sqrt(N_total / n_m), clamp [0.2, 5.0], normalize mean=1")

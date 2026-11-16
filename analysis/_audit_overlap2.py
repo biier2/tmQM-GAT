@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""重叠口径对比：找出 787 的来源口径"""
+"""Overlap convention comparison: find the convention that yields 787"""
 import sys
 import numpy as np, pandas as pd
 sys.stdout.reconfigure(encoding='utf-8')
@@ -43,14 +43,14 @@ for name, fn in [('sanitize=True', c_san), ('soft', c_soft)]:
     te_c = [fn(smis[r]) for r in te]
     nfailte = sum(1 for c in te_c if c is None)
     pop = sum(1 for c in te_c if c is not None and c in cv_set)
-    print('%-14s cv 解析失败 %5d  set %6d | te 解析失败 %4d | 重叠 %4d / %d (%.2f%%)'
+    print('%-14s cv unparsable %5d  set %6d | te unparsable %4d | overlap %4d / %d (%.2f%%)'
           % (name, nfail, len(cv_set), nfailte, pop, len(te), pop / len(te) * 100))
 
-# 原始字符串口径
+# raw-string convention
 cv_raw = set(smis[r] for r in cv if isinstance(smis[r], str))
 pop_raw = sum(1 for r in te if isinstance(smis[r], str) and smis[r] in cv_raw)
-print('%-14s 重叠 %4d / %d (%.2f%%)' % ('raw string', pop_raw, len(te), pop_raw / len(te) * 100))
-# 去掉立体化学的骨架口径
+print('%-14s overlap %4d / %d (%.2f%%)' % ('raw string', pop_raw, len(te), pop_raw / len(te) * 100))
+# skeleton convention with stereochemistry removed
 def c_skel(s):
     c = c_san(s)
     if c is None: return None
@@ -60,4 +60,4 @@ def c_skel(s):
     return Chem.MolToSmiles(m)
 cv_sk = set(filter(None, (c_skel(smis[r]) for r in cv)))
 pop_sk = sum(1 for r in te if c_skel(smis[r]) in cv_sk)
-print('%-14s 重叠 %4d / %d (%.2f%%)' % ('no-stereo', pop_sk, len(te), pop_sk / len(te) * 100))
+print('%-14s overlap %4d / %d (%.2f%%)' % ('no-stereo', pop_sk, len(te), pop_sk / len(te) * 100))

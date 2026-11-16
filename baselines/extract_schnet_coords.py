@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-从 XYZ 提取 new_domain_iso.pt 那 90,377 个络合物的**正确**坐标。
-关键：使用 rebuild_match_iso.py 的全局块索引（三个 part 顺序拼接，bidx = CSV 行号），
-而不是 schNet/DimeNet 旧脚本里 start_idx=len(all_m) 的那个 bug。
-产出 schnet_domain_coords.npz：coords(flat) + lens，与 new_domain_iso.pt 的 csv_idx 顺序一一对应。
+Extract the **correct** coordinates of the 90,377 complexes in new_domain_iso.pt from XYZ.
+Key point: use the global block indices of rebuild_match_iso.py (the three parts concatenated
+in order, bidx = CSV row number), not the start_idx=len(all_m) bug in the old schNet/DimeNet
+scripts. Produces schnet_domain_coords.npz: coords(flat) + lens, in one-to-one correspondence
+with the csv_idx order of new_domain_iso.pt.
 """
 import sys, gzip, time
 sys.stdout.reconfigure(encoding='utf-8')
@@ -41,7 +42,7 @@ xyz_blocks = []
 for p in [1, 2, 3]:
     xyz_blocks.extend(parse_xyz(f'{ROOT}/tmQM_X{p}.xyz.gz'))
     print(f'  part {p}: cum {len(xyz_blocks)}  [{time.time()-t0:.0f}s]', flush=True)
-print(f'XYZ 总块数: {len(xyz_blocks)}')
+print(f'XYZ total blocks: {len(xyz_blocks)}')
 
 D = torch.load('new_domain_iso.pt', weights_only=False)
 csv_idx = np.asarray(D['csv_idx'])
@@ -67,9 +68,9 @@ for k in range(N):
     if (k + 1) % 20000 == 0:
         print(f'  ...{k+1}/{N} [{time.time()-t0:.0f}s]', flush=True)
 
-print(f'元素/长度不一致: {mismatch} / {N}  ' + ('✓ 全部对齐' if mismatch == 0 else '❌'))
+print(f'Element/length mismatches: {mismatch} / {N}  ' + ('✓ all aligned' if mismatch == 0 else '❌'))
 lens = np.array([len(c) for c in coords_out], dtype=np.int32)
 flat = np.concatenate(coords_out, axis=0)
 np.savez_compressed('schnet_domain_coords.npz', coords=flat, lens=lens)
-print(f'SAVED schnet_domain_coords.npz: {flat.shape} 原子, {lens.sum()} 校验和, {flat.nbytes/1e6:.1f} MB')
-print(f'总耗时 {time.time()-t0:.0f}s')
+print(f'SAVED schnet_domain_coords.npz: {flat.shape} atoms, {lens.sum()} checksum, {flat.nbytes/1e6:.1f} MB')
+print(f'Total elapsed {time.time()-t0:.0f}s')

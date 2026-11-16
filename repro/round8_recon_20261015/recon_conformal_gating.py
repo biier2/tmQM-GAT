@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""只读复算（编辑阶段留档）：
-[A] 0.4 —— 保形分位"实现（np.quantile 线性插值，level=(1−α)(1+1/n)）"vs
-    "SI 公式（阶次直取 k=ceil((n+1)(1−α))）"逐性质×3 level 对照。
-[B] id37 —— 门控复现：11,556 评估子集、按性质独立、hw@90 上四分位拒绝、计
-    数与 MAE 对照（SI 表 S14/S15：8,667 (75.0%)、0.0078/1.105、0.0061/0.879、
-    预门控 0.0092/1.394），并导出评估索引与各性质 retained 掩码。
-数据与口径 = _audit_conformal.py（RandomState(42)、ddof=0、σ≥1e-6、unclipped mean）。
+"""Read-only recomputation (archived at the editing stage):
+[A] 0.4 — conformal quantile "implementation (np.quantile linear interpolation, level=(1−α)(1+1/n))" vs
+    "SI formula (direct order statistic k=ceil((n+1)(1−α)))" per property × 3 levels.
+[B] id37 — gating reproduction: 11,556 evaluation subset, independent per property, hw@90 upper-quartile rejection, count
+    and MAE comparison (SI tables S14/S15: 8,667 (75.0%), 0.0078/1.105, 0.0061/0.879,
+    pre-gating 0.0092/1.394), and export of the evaluation indices and per-property retained masks.
+Data and definitions = _audit_conformal.py (RandomState(42), ddof=0, σ≥1e-6, unclipped mean).
 """
 import json
 import os
@@ -43,12 +43,12 @@ rng = np.random.RandomState(42)
 cal_idx = rng.choice(n, size=2000, replace=False)
 mask = np.zeros(n, bool); mask[cal_idx] = True
 ev = ~mask
-print('N=%d  校准=%d  评估=%d' % (n, mask.sum(), ev.sum()))
+print('N=%d  calibration=%d  evaluation=%d' % (n, mask.sum(), ev.sum()))
 ev_idx = np.where(ev)[0]
 n_cal = int(mask.sum())
 
-# ---------- [A] 分位定义对照 ----------
-print('\n===== [A] 0.4 分位对照：interp vs order-stat =====')
+# ---------- [A] Quantile-definition comparison ----------
+print('\n===== [A] 0.4 quantile comparison: interp vs order-stat =====')
 print('%-14s %5s | %12s %12s %10s | %9s %9s | %9s %9s' %
       ('property', 'level', 'q_interp', 'q_order', 'dq', 'cov_int', 'cov_ord', 'hw_int', 'hw_ord'))
 qcmp = {}
@@ -71,15 +71,15 @@ for j, p in enumerate(P8):
               (p, tgt, q_i, q_o, q_o - q_i, cov_i, cov_o, hw_i, hw_o))
 dqs = [abs(v['q_order'] - v['q_interp']) / max(v['q_interp'], 1e-12) for v in qcmp.values()]
 dcovs = [abs(v['cov_order'] - v['cov_interp']) for v in qcmp.values()]
-print('最大相对差值 |dq|/q = %.3e ; 最大 |Δcov| = %.5f（24 组）' % (max(dqs), max(dcovs)))
+print('max relative difference |dq|/q = %.3e ; max |Δcov| = %.5f (24 combinations)' % (max(dqs), max(dcovs)))
 rngs = {t: (min(v['cov_interp'] for kk, v in qcmp.items() if kk.endswith('%.2f' % t)),
             max(v['cov_interp'] for kk, v in qcmp.items() if kk.endswith('%.2f' % t)))
         for t in (0.80, 0.90, 0.95)}
-print('interp 口径 coverage 范围: 0.80→%.4f–%.4f | 0.90→%.4f–%.4f | 0.95→%.4f–%.4f  (SI: 0.784–0.818 / 0.880–0.908 / 0.937–0.956)'
+print('interp coverage ranges: 0.80→%.4f–%.4f | 0.90→%.4f–%.4f | 0.95→%.4f–%.4f  (SI: 0.784–0.818 / 0.880–0.908 / 0.937–0.956)'
       % (rngs[0.80] + rngs[0.90] + rngs[0.95]))
 
-# ---------- [B] 门控复现 ----------
-print('\n===== [B] id37 门控复现（90% 半宽，按性质独立）=====')
+# ---------- [B] Gating reproduction ----------
+print('\n===== [B] id37 gating reproduction (90% half-width, independent per property) =====')
 gate = {}
 keep_masks = {}
 for j, p in enumerate(P8):
@@ -87,7 +87,7 @@ for j, p in enumerate(P8):
     s_cal = np.abs(y_true[mask, j] - y_mean[mask, j]) / sigma[mask, j]
     q90 = float(np.quantile(s_cal, min(1.0, (1 - a) * (1 + 1.0 / n_cal)),
                             method='linear'))
-    hw = q90 * sigma[ev, j]                       # 逐复形半宽（= q*σ；表 14 的均值 = q*mean σ）
+    hw = q90 * sigma[ev, j]                       # per-complex half-width (= q*σ; the mean in table 14 = q*mean σ)
     mae_pre = float(np.abs(y_true[ev, j] - y_mean[ev, j]).mean())
     thr75 = float(np.percentile(hw, 75))
     thr25 = float(np.percentile(hw, 25))
@@ -100,16 +100,16 @@ for j, p in enumerate(P8):
                    retained_le=le75, retained_lt=lt75, ties_at_thr=eq75, mae_post=mae_post,
                    retained_q1=int(keep25.sum()), mae_q1=mae_q1)
     keep_masks[p] = keep75
-    print('%-14s q90=%.5f hw_mean=%.5f(印%.3f) | pre %.4f | >75%% 保留 ≤%d  < %d (thr 处 ties %d) | post %.4f | 最低四分位 %d, MAE %.4f' %
+    print('%-14s q90=%.5f hw_mean=%.5f(printed %.3f) | pre %.4f | >75%% retained ≤%d  < %d (ties at thr %d) | post %.4f | lowest quartile %d, MAE %.4f' %
           (p, q90, hw.mean(), PRINTED_HW[p], mae_pre, le75, lt75, eq75, mae_post, keep25.sum(), mae_q1))
 print()
-print('对照 SI 表 S15：预门控（11,556）HL-Gap %.4f（印 0.0092）、Dipole %.4f（印 1.394）；拒上四分位保留 %d（印 8,667）→ HL-Gap %.4f（印 0.0078）、Dipole %.4f（印 1.105）；最低四分位 %d 例（印 2,889）→ HL-Gap %.4f（印 0.0061）、Dipole %.4f（印 0.879）'
+print('Against SI table S15: pre-gating (11,556) HL-Gap %.4f (printed 0.0092), Dipole %.4f (printed 1.394); rejecting the upper quartile retains %d (printed 8,667) → HL-Gap %.4f (printed 0.0078), Dipole %.4f (printed 1.105); lowest quartile %d cases (printed 2,889) → HL-Gap %.4f (printed 0.0061), Dipole %.4f (printed 0.879)'
       % (gate['HL-Gap']['mae_pre'], gate['Dipole']['mae_pre'],
          gate['HL-Gap']['retained_le'],
          gate['HL-Gap']['mae_post'], gate['Dipole']['mae_post'],
          gate['HL-Gap']['retained_q1'], gate['HL-Gap']['mae_q1'], gate['Dipole']['mae_q1']))
 
-# ---------- 留档输出 ----------
+# ---------- Archived outputs ----------
 with open(os.path.join(OUT, 'conformal_quantile_compare.json'), 'w', encoding='utf-8') as f:
     json.dump(qcmp, f, indent=1, ensure_ascii=False)
 with open(os.path.join(OUT, 'gating_recon.json'), 'w', encoding='utf-8') as f:

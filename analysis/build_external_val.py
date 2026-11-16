@@ -10,25 +10,25 @@ def add_code(src, cid):
     cells.append({"cell_type": "code", "metadata": {}, "execution_count": None, "outputs": [],
                   "source": [l + '\n' for l in src.split('\n')], "id": cid})
 
-add_md("""# 外部验证：tmQMg 跨 DFT 泛化测试
+add_md("""# External validation: tmQMg cross-DFT generalization test
 
-## 目的
-在独立数据集上验证模型泛化能力，回应审稿人对过拟合 tmQM 的质疑。
+## Purpose
+Test the model's generalization on an independent dataset, answering the reviewers' concern about overfitting to tmQM.
 
 ## tmQMg vs tmQM
-| | tmQM (训练) | tmQMg (验证) |
+| | tmQM (training) | tmQMg (validation) |
 |------|------|------|
-| DFT 级别 | TPSSh-D3BJ/def2-SVP | ωB97xd/def2-SVP |
-| 配合物数 | 108k | 74,547 |
-| 用途 | 训练 | **零样本外部验证** |
+| DFT level | TPSSh-D3BJ/def2-SVP | ωB97xd/def2-SVP |
+| Number of complexes | 108k | 74,547 |
+| Use | training | **zero-shot external validation** |
 
-## 评估指标
-- **Pearson r**: 预测值与 DFT 值的线性相关性
-- **MAE**: 反归一化后的绝对误差
-- **R²**: 决定系数
+## Evaluation metrics
+- **Pearson r**: linear correlation between predicted and DFT values
+- **MAE**: absolute error after de-normalization
+- **R²**: coefficient of determination
 
-## 参考基线
-tmGNN-XAI 在 tmQMg 上的 cross-DFT validation: HL-Gap Pearson r=0.777, Metal-q r=0.858
+## Reference baseline
+tmGNN-XAI cross-DFT validation on tmQMg: HL-Gap Pearson r=0.777, Metal-q r=0.858
 """, "ext_intro")
 
 add_code("""import numpy as np, pandas as pd, torch, torch.nn as nn, os, sys, warnings
@@ -42,11 +42,11 @@ from sklearn.metrics import r2_score, mean_absolute_error
 from scipy.stats import pearsonr
 from tqdm import tqdm
 
-# ===== 加载 tmQMg =====
+# ===== Load tmQMg =====
 df_ext = pd.read_csv('tmQMg_properties_and_targets.csv')
 print(f'Loaded tmQMg: {len(df_ext):,} complexes')
 
-# 属性映射: tmQMg列 → 我们的target名称
+# property mapping: tmQMg columns → our target names
 COLUMN_MAP = {
     'gap': 'tzvp_homo_lumo_gap',
     'homo': 'tzvp_homo_energy',
@@ -56,28 +56,28 @@ COLUMN_MAP = {
     'E_disp': 'tzvp_dispersion_energy',
     'polarizability': 'polarisability',
 }
-# tmQMg 没有 metal_charge, 验证7个性质
+# tmQMg has no metal_charge, so 7 properties are validated
 targets_ext = ['gap', 'homo', 'lumo', 'dipole', 'E_elec', 'E_disp', 'polarizability']
 
-# 过滤无效 SMILES
+# filter invalid SMILES
 valid_mask = df_ext['smiles'].apply(lambda s: isinstance(s, str) and s != '' and s != 'nan')
 df_valid = df_ext[valid_mask].copy()
 print(f'Valid SMILES: {len(df_valid):,} ({len(df_valid)/len(df_ext)*100:.1f}%)')
 
-# 提取目标值 (物理单位)
+# extract target values (physical units)
 y_ext = np.zeros((len(df_valid), len(targets_ext)), dtype=np.float32)
 for i, prop in enumerate(targets_ext):
     col = COLUMN_MAP[prop]
     y_ext[:, i] = df_valid[col].values.astype(np.float32)
 
-# NaN检查
+# NaN check
 nan_mask = ~(np.isnan(y_ext).any(axis=1) | np.isinf(y_ext).any(axis=1))
 df_valid = df_valid[nan_mask].reset_index(drop=True)
 y_ext = y_ext[nan_mask]
 print(f'After NaN removal: {len(df_valid):,} complexes')
 """, "ext_load")
 
-add_code("""# ===== SMILES GAT 模型加载 =====
+add_code("""# ===== SMILES GAT model loading =====
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12
 
 ELEMENT_DATA = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),44:(5,8),45:(5,9),46:(5,10),47:(5,11),48:(5,12),53:(5,17),72:(6,4),73:(6,5),74:(6,6),75:(6,7),76:(6,8),77:(6,9),78:(6,10),79:(6,11),80:(6,12)}
@@ -182,7 +182,7 @@ class SMILES_GAT_Eval(nn.Module):
         mf = scatter_mean_per_graph(h[mm], batch[mm], n_graphs) if mm.any() else torch.zeros(n_graphs, h.size(1), device=h.device, dtype=h.dtype)
         return self.readout(torch.cat([mean_h, max_h, mf], dim=1))
 
-# 加载SMILES GAT
+# load SMILES GAT
 model_smiles = SMILES_GAT_Eval(node_dim=8, edge_dim=6, output_dim=8).to(device)
 ckpt = 'tmqm_gat_best.pt'
 if os.path.exists(ckpt):
@@ -194,7 +194,7 @@ else:
     model_smiles = None
 model_smiles.eval() if model_smiles else None
 
-# 加载XYZ GNN
+# load XYZ GNN
 class XYZ_GNN_Eval(nn.Module):
     def __init__(self, node_dim=11, edge_dim=23, hidden=HIDDEN, n_layers=N_LAYERS, output_dim=8, heads=GAT_HEADS):
         super().__init__(); self.heads = heads
@@ -236,7 +236,7 @@ add_code("""print('='*60)
 print('Building graphs + running inference on tmQMg ({:,} complexes)'.format(len(df_valid)))
 print('='*60)
 
-# 建图
+# build graphs
 graphs_ext, graph_indices = [], []
 for i in tqdm(range(len(df_valid)), desc='Building graphs'):
     smi = df_valid['smiles'].iloc[i]
@@ -248,11 +248,11 @@ print(f'Built {len(graphs_ext):,} graphs out of {len(df_valid):,}')
 
 y_ext_final = y_ext[graph_indices]
 
-# 反归一化统计量 (全量tmQM, 与训练一致)
+# de-normalization statistics (full tmQM, consistent with training)
 y_mean_smiles = np.array([0.108504, -0.197593, -0.089089, 5.799450, 0.162882, -2987.303526, -0.142228, 397.124993], dtype=np.float32)
 y_std_smiles  = np.array([0.033575, 0.053825, 0.054517, 3.927489, 0.782914, 1634.083288, 0.070115, 152.460083], dtype=np.float32)
 
-# SMILES GAT 推理
+# SMILES GAT inference
 smiles_preds = None
 if model_smiles is not None:
     bs = 128
@@ -266,10 +266,10 @@ if model_smiles is not None:
     smiles_preds = np.concatenate(preds_list, axis=0)
     print(f'SMILES GAT predictions: {smiles_preds.shape}')
 
-# XYZ GNN 推理 — pad SMILES graphs to 11+23 dims
+# XYZ GNN inference — pad SMILES graphs to 11+23 dims
 xyz_preds = None
 if has_xyz:
-    bs = 64  # XYZ模型更大, batch减小
+    bs = 64  # the XYZ model is larger, so reduce the batch
     preds_list = []
     with torch.no_grad():
         for s in tqdm(range(0, len(graphs_ext), bs), desc='XYZ GNN inference'):
@@ -294,8 +294,8 @@ add_code("""print('='*60)
 print('EXTERNAL VALIDATION RESULTS (tmQMg, wB97xd/def2SVP)')
 print('='*60)
 
-# 只评估 tmQMg 中存在的 7 个性质 (无 metal_charge)
-# SMILES GAT 输出 8 列, 取 target indices [0,1,2,3,4,5,7] 对应 gap,homo,lumo,dipole,E_elec,E_disp,polariz
+# evaluate only the 7 properties present in tmQMg (no metal_charge)
+# SMILES GAT outputs 8 columns; take target indices [0,1,2,3,4,5,7] for gap,homo,lumo,dipole,E_elec,E_disp,polariz
 smiles_idx = [0, 1, 2, 3, 5, 6, 7]  # skip metal_charge index 4
 xyz_idx = [0, 1, 2, 3, 5, 6, 7]
 
@@ -331,7 +331,7 @@ for j, prop in enumerate(targets_ext):
 
 res_df = pd.DataFrame(results)
 
-# 汇总
+# summary
 if smiles_preds is not None:
     valid_sm = res_df['SMILES_r'].dropna()
     print(f'\\nSMILES GAT — Mean Pearson r: {valid_sm.mean():.4f}')
@@ -339,10 +339,10 @@ if xyz_preds is not None:
     valid_xyz = res_df['XYZ_r'].dropna()
     print(f'XYZ GNN — Mean Pearson r: {valid_xyz.mean():.4f}')
 
-# 对比tmGNN-XAI
+# compare with tmGNN-XAI
 print(f'\\ntmGNN-XAI reference (tmQMg*, cross-DFT): HL-Gap r=0.777, Metal-q r=0.858')
 if xyz_preds is not None:
-    # 看dipole
+    # look at dipole
     dipole_r = res_df[res_df['Property']=='dipole']['SMILES_r'].values[0]
     print(f'\\nKey finding: SMILES GAT dipole cross-DFT Pearson r = {dipole_r:.4f}')
     if dipole_r > 0.7:
@@ -387,17 +387,17 @@ plt.suptitle(f'Cross-DFT Validation: tmQM (TPSSh) -> tmQMg (wB97xd), N={len(y_ex
 plt.tight_layout(); plt.show()
 """, "ext_viz")
 
-add_md("""## 外部验证结论
+add_md("""## External validation conclusions
 
-### 关键发现
-1. **跨 DFT 泛化**: 模型在 wB97xd 级别的数据上保持了预测能力
-2. **Pearson r**: 量化预测值与 DFT 值的线性相关性
-3. **与已发表方法对比**: tmGNN-XAI 报告 HL-Gap r=0.777
+### Key findings
+1. **Cross-DFT generalization**: the model retains its predictive power on data at the wB97xd level
+2. **Pearson r**: quantifies the linear correlation between predicted and DFT values
+3. **Comparison with published methods**: tmGNN-XAI reports HL-Gap r=0.777
 
-### 局限性
-- tmQMg 不包含 metal_charge (NBO), 无法验证金属电荷
-- ωB97xd 与 TPSSh 存在系统性偏差, 高 Pearson r ≠ 低 MAE
-- XYZ GNN 用零填充边特征 (缺少 DFT 距离/BO), 因此 dipole 表现偏向 SMILES GAT
+### Limitations
+- tmQMg does not contain metal_charge (NBO), so the metal charge cannot be validated
+- There is a systematic bias between ωB97xd and TPSSh, so a high Pearson r ≠ a low MAE
+- XYZ GNN uses zero-padded edge features (no DFT distances/BO), so its dipole performance tends towards that of the SMILES GAT
 """, "ext_discussion")
 
 nb = {"nbformat": 4, "nbformat_minor": 5,

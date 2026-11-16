@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""意见1 数据重建 v3: 精确图同构原子匹配 (networkx vf2pp, 重原子图)
-三级回退: BO(0.2) → 距离成键(0.45) → 距离成键(0.60); 全失败=排除并分类计数
-输出 new_domain_iso.pt: 四变体核心特征 + atoms_filt + te_idx (RandomState(42) 15%)
+"""Comment 1 data rebuild v3: exact graph-isomorphism atom matching (networkx vf2pp, heavy-atom graph)
+Three-tier fallback: BO(0.2) → distance bonding(0.45) → distance bonding(0.60); total failure = excluded and counted by category
+Output new_domain_iso.pt: four-variant core features + atoms_filt + te_idx (RandomState(42) 15%)
 """
 import sys, gzip, time
 sys.stdout.reconfigure(encoding='utf-8')
@@ -27,7 +27,7 @@ Y = y_csv[['HL_Gap','HOMO_Energy','LUMO_Energy','Dipole_M','Metal_q',
 SMILES_LIST = y_csv['SMILES'].tolist()
 CSD_LIST = y_csv['CSD_code'].astype(str).tolist()
 
-# ---------- 解析 ----------
+# ---------- Parsing ----------
 def parse_xyz(path):
     blocks = []
     with gzip.open(path, 'rt') as f:
@@ -94,9 +94,9 @@ print('parsing BO...', flush=True)
 bo_by_code = {}
 for p in [1, 2, 3]:
     bo_by_code.update(parse_bo(f'{ROOT}/tmQM_X{p}.BO.gz'))
-print(f'BO 码覆盖: {len(bo_by_code)}', flush=True)
+print(f'BO code coverage: {len(bo_by_code)}', flush=True)
 
-# ---------- 图构建 ----------
+# ---------- Graph construction ----------
 def build_sm_heavy(smi):
     mol = Chem.MolFromSmiles(smi)
     if mol is None: return None
@@ -146,7 +146,7 @@ def exact_iso(Gx, Gs):
         if not Gx.has_edge(sm2xyz[i], sm2xyz[j]): return None
     return sm2xyz
 
-# ---------- 特征 ----------
+# ---------- Features ----------
 ELEMENT_DATA_SM = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),44:(5,8),45:(5,9),46:(5,10),47:(5,11),48:(5,12),53:(5,17),72:(6,4),73:(6,5),74:(6,6),75:(6,7),76:(6,8),77:(6,9),78:(6,10),79:(6,11),80:(6,12)}
 BOND_TYPES_SM = [1,2,3,12]; B2I_SM = {b:i for i,b in enumerate(BOND_TYPES_SM)}; N_BT_SM = 4
 rbf_c = np.linspace(1.0, 5.0, 16).astype(np.float32)
@@ -179,7 +179,7 @@ for bidx, (code, syms, coords) in enumerate(xyz_blocks):
     Gs = build_sm_heavy(smi)
     if Gs is None: excl['bad_smiles'] += 1; continue
 
-    # 回退链
+    # Fallback chain
     sm2xyz = None; src = None
     Gx, _, _ = build_xyz_bo_graph(syms, code)
     sm2xyz = exact_iso(Gx, Gs)
@@ -202,7 +202,7 @@ for bidx, (code, syms, coords) in enumerate(xyz_blocks):
 
     n_iso_ok += 1
     src_all.append(src)
-    # BO 稠密矩阵 (transient)
+    # BO dense matrix (transient)
     bos_src, bos_nbr, bos_val = bo_by_code[code]
     bm = np.zeros((n_full, n_full), dtype=np.float32)
     for s, nb, bv in zip(bos_src, bos_nbr, bos_val):
@@ -255,8 +255,8 @@ for bidx, (code, syms, coords) in enumerate(xyz_blocks):
     if n_iso_ok % 10000 == 0:
         print(f'  ...{n_iso_ok} iso-ok [{time.time()-t0:.0f}s]', flush=True)
 
-print(f'iso 成功: {n_iso_ok}, 来源分布: {dict(Counter(src_all))}')
-print(f'排除分布: {dict(excl)}')
+print(f'iso successes: {n_iso_ok}, source distribution: {dict(Counter(src_all))}')
+print(f'exclusion distribution: {dict(excl)}')
 
 N = n_iso_ok
 perm = np.random.RandomState(42).permutation(N)

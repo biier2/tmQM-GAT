@@ -3,7 +3,7 @@
 This note records the source files, checksums, and filtering chain for the
 90,377-complex domain used in the manuscript. It complements
 `data_indices/index_reconciliation.json` and the row-level tables in
-`data_indices/`. The older `repro/数据版本说明.md` describes the legacy
+`data_indices/`. The older `repro/data_version_notes.md` describes the legacy
 90,317 domain and is retained unchanged as a historical record.
 
 ## Source release

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""重叠审计 v2 —— 用 new_domain_iso.pt 的 csv_idx 正确映射 SMILES"""
+"""Overlap audit v2 -- map SMILES correctly using the csv_idx in new_domain_iso.pt"""
 import sys
 import numpy as np, pandas as pd, torch
 sys.stdout.reconfigure(encoding='utf-8')
@@ -16,7 +16,7 @@ csv_idx = np.asarray(D['csv_idx'])
 y_all = D['y_all'].numpy()
 print('csv_idx max %d  (<%d)' % (csv_idx.max(), len(df)))
 chk = df.iloc[csv_idx][TARGETS].values.astype(np.float32)
-print('y_all 与 CSV 对应:', np.allclose(chk, y_all, atol=1e-4), ' 最大偏差 %.4g'
+print('y_all consistent with CSV:', np.allclose(chk, y_all, atol=1e-4), ' max deviation %.4g'
       % np.abs(chk - y_all).max())
 
 smis = df['SMILES'].values
@@ -35,12 +35,12 @@ cv_set = set(filter(None, (canon(s) for s in cv_smi)))
 te_c = [canon(s) for s in te_smi]
 nfail = sum(1 for c in te_c if c is None)
 ov = np.array([c is not None and c in cv_set for c in te_c])
-print('te 解析失败 %d;  ★ SMILES 重叠 %d / %d (%.2f%%)' % (nfail, ov.sum(), len(te), ov.sum() / len(te) * 100))
+print('te unparsable %d;  ★ SMILES overlap %d / %d (%.2f%%)' % (nfail, ov.sum(), len(te), ov.sum() / len(te) * 100))
 
-# CSD 码口径（正文/SI 称 CSD 一致率 100%）
+# CSD-code convention (main text/SI report a CSD agreement rate of 100%)
 te_csd = [D['csd_codes'][i] for i in te]
 cv_csd = set(D['csd_codes'][i] for i in cv)
-print('CSD 码重叠: %d' % sum(1 for c in te_csd if c in cv_csd))
+print('CSD-code overlap: %d' % sum(1 for c in te_csd if c in cv_csd))
 
 TAGS = {'A': 'A_8d6d', 'B': 'B_8d22d', 'C': 'C_11d6d', 'D': 'D_11d23d'}
 print()
@@ -50,8 +50,8 @@ for k, t in TAGS.items():
     full = np.array([r2_score(yt[:, j], en[:, j]) for j in range(8)])
     no = np.array([r2_score(yt[~ov, j], en[~ov, j]) for j in range(8)])
     d = no - full
-    print('变体 %s: 最大跌幅 %+.4f (%s) | dipole %.4f -> %.4f (%+.4f) | 8性质均值 %.4f -> %.4f'
+    print('Variant %s: largest drop %+.4f (%s) | dipole %.4f -> %.4f (%+.4f) | 8-property mean %.4f -> %.4f'
           % (k, d.min(), P8[int(d.argmin())], full[3], no[3], d[3], full.mean(), no.mean()))
     if k in ('B', 'D'):
-        print('        各性质 Δ: %s' % '  '.join('%s %+.4f' % (P8[j][:6], d[j]) for j in range(8)))
+        print('        per-property Δ: %s' % '  '.join('%s %+.4f' % (P8[j][:6], d[j]) for j in range(8)))
 np.save('_audit/ov_mask.npy', ov)

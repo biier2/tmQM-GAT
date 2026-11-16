@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""本地生成 vA_domain_smiles.pt — R5 期望格式 {graphs, y_all, atoms_filt}
-输入: kept_cache.npz (90,335 kept 的 csv_idx+y) + vA_removed_kept.npy (18 删除位置)
-     + 本地 tmQM_y.csv (3-17 版, md5 f8eeb967...f043) + ensemble_predictions.npz
-建图: node 8d / edge 6d — 与 build_vA_domain.py (R3/R5 协议) 逐位一致的 SMILES 特征化
-atoms_filt: 每分子重原子 z 序列 (金属权重只用 z>=21, 与 xyz 解析的 z 序列等价)
-端到端自检: te_idx 全等 + y_true 字节级 0/13,547 + 图键位/形状 + R5 allclose 门 才保存
+"""Generate vA_domain_smiles.pt locally — the format R5 expects {graphs, y_all, atoms_filt}
+Input: kept_cache.npz (csv_idx+y of the 90,335 kept) + vA_removed_kept.npy (18 removed positions)
+     + local tmQM_y.csv (3-17 version, md5 f8eeb967...f043) + ensemble_predictions.npz
+Graph building: node 8d / edge 6d — SMILES featurisation bit-identical to build_vA_domain.py (R3/R5 protocol)
+atoms_filt: per-molecule heavy-atom z sequence (metal weights use only z>=21, equivalent to the z sequence from the xyz parsing)
+End-to-end self-check: saved only if te_idx is exactly equal + y_true bit-identical 0/13,547 + graph keys/shapes + the R5 allclose gate all pass
 """
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
@@ -23,19 +23,19 @@ df_y = df_y.rename(columns={
     'Polarizability': 'polarizability'})
 targets = ['gap', 'homo', 'lumo', 'dipole', 'metal_charge', 'E_elec', 'E_disp', 'polarizability']
 smiles_by_idx = df_y['SMILES'].tolist()
-y_csv = df_y[targets].astype(float).values  # float64 原值
+y_csv = df_y[targets].astype(float).values  # float64 original values
 
-# ---- 已验证 kept 序列: 90,335 - 18 = 90,317 ----
+# ---- Verified kept sequence: 90,335 - 18 = 90,317 ----
 z = np.load('kept_cache.npz')
-mseq = z['csv_idx'].copy()          # 90,335 行 csv_idx (notebook 保留序列)
-rem = np.load('vA_removed_kept.npy')  # 18 个删除位置 (原 90,335 空间)
+mseq = z['csv_idx'].copy()          # csv_idx (mol_idx) for the 90,335 rows (notebook kept sequence)
+rem = np.load('vA_removed_kept.npy')  # 18 removed positions (in the original 90,335 space)
 keep = np.ones(len(mseq), dtype=bool)
 keep[rem] = False
 mseq = mseq[keep]
-assert len(mseq) == 90317, f'期望 90317, 得到 {len(mseq)}'
-print(f'kept 序列: {len(mseq):,} 行 (删除 {len(rem)} 个 RDKit 版本差异行)', flush=True)
+assert len(mseq) == 90317, f'expected 90317, got {len(mseq)}'
+print(f'kept sequence: {len(mseq):,} rows ({len(rem)} RDKit-version-difference rows removed)', flush=True)
 
-# ---- SMILES 建图 (node 8d / edge 6d) — 逐字 = build_vA_domain.py ----
+# ---- SMILES graph construction (node 8d / edge 6d) — verbatim = build_vA_domain.py ----
 ELEMENT_DATA_SM = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),44:(5,8),45:(5,9),46:(5,10),47:(5,11),48:(5,12),53:(5,17),72:(6,4),73:(6,5),74:(6,6),75:(6,7),76:(6,8),77:(6,9),78:(6,10),79:(6,11),80:(6,12)}
 BOND_TYPES_SM = [1,2,3,12]; B2I_SM = {b:i for i,b in enumerate(BOND_TYPES_SM)}
 
@@ -50,7 +50,7 @@ for pos, c in enumerate(mseq):
     smi = smiles_by_idx[c]
     mol = Chem.MolFromSmiles(smi)
     if mol is None:
-        failed += 1; continue   # 90,317 全是 notebook 保留行, 本地应全部成功; 失败即停
+        failed += 1; continue   # all 90,317 are notebook kept rows, so all should succeed locally; stop on failure
     N = mol.GetNumAtoms()
     xf = [atom_features_sm(a) for a in mol.GetAtoms()]
     x = torch.tensor(xf, dtype=torch.float32)
@@ -75,45 +75,45 @@ for pos, c in enumerate(mseq):
     if (pos + 1) % 20000 == 0:
         print(f'  {pos+1:,}/90,317', flush=True)
 
-assert failed == 0, f'{failed} 个 SMILES 本地解析失败 — 与 notebook 保留序列矛盾, 停'
+assert failed == 0, f'{failed} SMILES failed to parse locally — contradicts the notebook kept sequence, stopping'
 y_all = torch.tensor(y_vals, dtype=torch.float32)
 assert y_all.shape == (90317, 8), y_all.shape
 mask = ~(torch.isnan(y_all).any(dim=1) | torch.isinf(y_all).any(dim=1))
-assert mask.all(), f'{(~mask).sum()} 行 y 非有限 — 与 notebook NaN 剔除 0 矛盾, 停'
-print(f'建图 {len(graphs):,} / y_all {tuple(y_all.shape)} / atoms_filt {len(atoms_filt):,}', flush=True)
+assert mask.all(), f'{(~mask).sum()} rows have non-finite y — contradicts the notebook NaN removal of 0, stopping'
+print(f'Built {len(graphs):,} graphs / y_all {tuple(y_all.shape)} / atoms_filt {len(atoms_filt):,}', flush=True)
 
-# ---- 图键位/形状检查 (R5 消费侧逐项) ----
+# ---- Graph key/shape checks (item by item, R5 consumer side) ----
 for i, g in enumerate(graphs):
     if g['x'].shape[1] != 8 or g['edge_attr'].shape[1] != 6 or g['edge_index'].shape[0] != 2:
-        raise SystemExit(f'图[{i}] 形状异常: x{g["x"].shape} ea{g["edge_attr"].shape} ei{g["edge_index"].shape}')
+        raise SystemExit(f'graph[{i}] shape anomaly: x{g["x"].shape} ea{g["edge_attr"].shape} ei{g["edge_index"].shape}')
     if g['edge_index'].shape[1] != g['edge_attr'].shape[0]:
-        raise SystemExit(f'图[{i}] 边数不一致')
+        raise SystemExit(f'graph[{i}] edge count mismatch')
     if g['num_nodes'] != g['x'].shape[0]:
-        raise SystemExit(f'图[{i}] num_nodes 不一致')
-print('图键位/形状检查通过 (x:8d, ea:6d, ei:2xE, num_nodes)', flush=True)
+        raise SystemExit(f'graph[{i}] num_nodes mismatch')
+print('graph key/shape checks passed (x:8d, ea:6d, ei:2xE, num_nodes)', flush=True)
 
-# ---- 对齐自检 vs ensemble_predictions.npz (build_vA_pt_local 同门 + R5 allclose 门) ----
+# ---- Alignment self-check vs ensemble_predictions.npz (same gate as build_vA_pt_local + R5 allclose gate) ----
 n = 90317
 idx_all = np.random.RandomState(42).permutation(n)
 te_idx = idx_all[:13547].copy()
 ep = np.load('ensemble_predictions.npz')
 te_ref = ep['te_idx']; yt_ref = ep['y_true'].astype(np.float32)
-assert np.array_equal(te_idx, te_ref), 'te_idx 不等!'
+assert np.array_equal(te_idx, te_ref), 'te_idx not equal!'
 miss = sum(1 for i in range(13547)
            if y_all[te_idx[i]].numpy().tobytes() != yt_ref[i].tobytes())
-print(f'te_idx 全等: True | y_true 字节级不一致: {miss} / 13,547', flush=True)
-assert miss == 0, '字节级不一致 — 停'
-assert np.allclose(y_all[te_idx].numpy(), yt_ref, atol=1e-4), 'R5 allclose(atol=1e-4) 门不过!'
-print('R5 内部自检预演: np.array_equal(ep te_idx) + np.allclose(y_all[te_idx], y_true, atol=1e-4) 全过 ★', flush=True)
+print(f'te_idx exactly equal: True | y_true bit-identical mismatches: {miss} / 13,547', flush=True)
+assert miss == 0, 'bit-level mismatch — stopping'
+assert np.allclose(y_all[te_idx].numpy(), yt_ref, atol=1e-4), 'R5 allclose(atol=1e-4) gate failed!'
+print('R5 internal self-check rehearsal: np.array_equal(ep te_idx) + np.allclose(y_all[te_idx], y_true, atol=1e-4) all pass ★', flush=True)
 
-# ---- 金属权重统计预演 (R5: for atoms in atoms_filt: z>=21 计数) ----
+# ---- Metal weight statistics rehearsal (R5: for atoms in atoms_filt: count z>=21) ----
 mc = {}
 for atoms in atoms_filt:
     for zz in set(atoms.tolist()):
         if zz >= 21: mc[zz] = mc.get(zz, 0) + 1
-print('金属计数 (R5 权重用):', {k: mc[k] for k in sorted(mc)}, flush=True)
+print('metal counts (used for R5 weights):', {k: mc[k] for k in sorted(mc)}, flush=True)
 
 torch.save({'graphs': graphs, 'y_all': y_all, 'atoms_filt': atoms_filt}, 'vA_domain_smiles.pt')
-print('SAVED vA_domain_smiles.pt (R5 格式 {graphs, y_all, atoms_filt})', flush=True)
+print('SAVED vA_domain_smiles.pt (R5 format {graphs, y_all, atoms_filt})', flush=True)
 print('md5:', hashlib.md5(open('vA_domain_smiles.pt', 'rb').read()).hexdigest(), flush=True)
-print('R5 加载: d = torch.load("vA_domain_smiles.pt", weights_only=False); graphs=d["graphs"]; y_all=d["y_all"]; atoms_filt=d["atoms_filt"]', flush=True)
+print('R5 load: d = torch.load("vA_domain_smiles.pt", weights_only=False); graphs=d["graphs"]; y_all=d["y_all"]; atoms_filt=d["atoms_filt"]', flush=True)

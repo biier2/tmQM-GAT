@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""S2: 几何源稳健性——训练几何(DFT/CSD xyz + Mayer BO) vs 部署几何(ETKDG+MMFF, BO=0)
-不重训。图A=训练口径(逐字复刻 ensemble_cv_weighted.ipynb Step 1)；图B=scorer_3d.ipynb
-cell3 部署口径。500 个测试集复合物，单模型 xyz_best_weighted.pt。输出 s2_geometry_source.json。"""
+"""S2: Geometry-source robustness -- training geometry (DFT/CSD xyz + Mayer BO) vs deployment geometry (ETKDG+MMFF, BO=0)
+No retraining. Graph A = training convention (verbatim reproduction of ensemble_cv_weighted.ipynb Step 1); graph B = scorer_3d.ipynb
+cell3 deployment convention. 500 test-set complexes, single model xyz_best_weighted.pt. Outputs s2_geometry_source.json."""
 import gzip
 import json
 import numpy as np
@@ -16,7 +16,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit import RDLogger; RDLogger.logger().setLevel(RDLogger.ERROR)
 
-# ===== 常量（与训练/scorer 完全一致）=====
+# ===== Constants (exactly matching training/scorer) =====
 y_mean_sm = torch.tensor([0.108505, -0.197591, -0.089089, 5.799378, 0.162882, -2987.275391, -0.142229, 397.123474])
 y_std_sm = torch.tensor([0.033575, 0.053824, 0.054516, 3.927464, 0.782902, 1634.063721, 0.070114, 152.458313])
 targets = ['gap', 'homo', 'lumo', 'dipole', 'metal_charge', 'E_elec', 'E_disp', 'polarizability']
@@ -59,7 +59,7 @@ def fast_match(sm_atoms, xyz_atoms):
     return sm_to_xyz
 
 
-# ===== 数据 =====
+# ===== Data =====
 df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';').rename(columns={
     'HL_Gap': 'gap', 'HOMO_Energy': 'homo', 'LUMO_Energy': 'lumo',
     'Dipole_M': 'dipole', 'Metal_q': 'metal_charge',
@@ -67,21 +67,21 @@ df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';').rename(columns={
     'Polarizability': 'polarizability'})
 smiles_by_idx = df_y['SMILES'].tolist()
 
-# ---- 第一遍：重建"训练 all_m 的 csv_idx 顺序"（含 TM 的分子块序列）----
+# ---- Pass 1: rebuild the "training all_m csv_idx order" (sequence of molecule blocks containing TM) ----
 print('Pass 1: scanning xyz files to rebuild training-order csv_idx sequence...')
-seq = []        # 含 TM 块的全局 csv_idx 序列（对应训练 all_m 顺序）
-collected = 0   # 跨 part 累计的含 TM 分子数（= 训练 start_idx=len(all_m) 语义）
+seq = []        # global csv_idx sequence of TM-containing blocks (corresponding to the training all_m order)
+collected = 0   # cumulative number of TM-containing molecules across parts (= training start_idx=len(all_m) semantics)
 for part in [1, 2, 3]:
     with gzip.open(f'data_tmQM/local_vB/tmQM_X{part}.xyz.gz', 'rt') as f:
         xyz_blocks = f.read().strip().split(chr(10))
-    i, mol_idx = 0, collected - 1   # 与训练一致：mol_idx 起点 = 前序 part 的 all_m 长度 - 1
+    i, mol_idx = 0, collected - 1   # same as training: mol_idx start = length of all_m from the preceding parts - 1
     while i < len(xyz_blocks):
         line = xyz_blocks[i].strip(); i += 1
         if not line: continue
         parts = line.split()
         if len(parts) == 1 and parts[0].isdigit():
             n_atoms = int(parts[0])
-            i += 1  # 跳过标题行
+            i += 1  # skip the title line
             zs = []
             for _ in range(n_atoms):
                 if i >= len(xyz_blocks): break
@@ -98,7 +98,7 @@ for part in [1, 2, 3]:
     print(f'  Part {part} done (last mol_idx={mol_idx}, collected={collected:,})')
 print(f'Total TM blocks in sequence: {len(seq):,}')
 
-# ---- te_idx → 目标 csv_idx（训练里 graphs 过滤了 SMILES 失败 + y NaN）----
+# ---- te_idx → target csv_idx (training filtered out SMILES failures + y NaN in graphs) ----
 def smi_ok(csv_i):
     s = smiles_by_idx[csv_i] if csv_i < len(smiles_by_idx) else ''
     return isinstance(s, str) and s != '' and Chem.MolFromSmiles(s) is not None
@@ -119,10 +119,10 @@ cand_positions = np.linspace(0, len(te_idx) - 1, n_cand).astype(int)
 cand_csv = set(valid_csv[int(t)] for t in te_idx[cand_positions])
 print(f'Sampled {len(cand_csv)} candidate csv indices')
 
-# ---- 第二遍：解析目标块的 coords + BO（逐字复刻训练 bo_mat 语义）----
+# ---- Pass 2: parse coords + BO of the target blocks (verbatim reproduction of the training bo_mat semantics) ----
 print('Pass 2: parsing target molecules with training-identical BO logic...')
 mols = {}          # csv_idx -> {atoms, coords, bo, bo_hit}
-collected = 0      # 训练 all_m 长度（跨 part 累计的含 TM 分子数）
+collected = 0      # training all_m length (number of TM-containing molecules accumulated across parts)
 n_bo_hit = 0; n_bo_miss = 0
 for part in [1, 2, 3]:
     with gzip.open(f'data_tmQM/local_vB/tmQM_X{part}.BO.gz', 'rt') as f:
@@ -149,7 +149,7 @@ for part in [1, 2, 3]:
                 cline = xyz_blocks[i].strip(); i += 1; cparts = cline.split()
                 if len(cparts) >= 4:
                     try:
-                        z = atom_to_z.get(cparts[0], 0)  # 与训练一致：未知符号/CSD_code 行 → z=0
+                        z = atom_to_z.get(cparts[0], 0)  # same as training: unknown symbol / CSD_code line → z=0
                         coords.append([float(x) for x in cparts[1:4]]); atoms.append(z)
                     except ValueError: continue
             mol_idx += 1
@@ -177,7 +177,7 @@ for part in [1, 2, 3]:
                              'bo': bo_mat}
 print(f'Targets parsed: {len(mols)}; BO hit: {n_bo_hit}, BO miss(→0): {n_bo_miss}')
 
-# ===== 图 B：ETKDG+MMFF（scorer cell3 口径）=====
+# ===== Graph B: ETKDG+MMFF (scorer cell3 convention) =====
 def smiles_to_3d_graph(smiles):
     mol = Chem.MolFromSmiles(smiles)
     if mol is None: return None
@@ -215,7 +215,7 @@ def smiles_to_3d_graph(smiles):
     return {'x': x, 'edge_index': ei, 'edge_attr': ea}
 
 
-# ===== 图 A：训练口径（xyz coords + BO）=====
+# ===== Graph A: training convention (xyz coords + BO) =====
 def build_train_graph(smiles, m):
     mol = Chem.MolFromSmiles(smiles)
     N = mol.GetNumAtoms()
@@ -258,7 +258,7 @@ def build_train_graph(smiles, m):
     return {'x': x, 'edge_index': ei, 'edge_attr': ea}
 
 
-# ===== 模型 =====
+# ===== Model =====
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12; DROPOUT = 0.10
 
 def segment_softmax(scores, dst, N):
@@ -317,7 +317,7 @@ st = {k.replace('_orig_mod.', ''): v for k, v in st.items()}
 model = XYZ_GNN(); model.load_state_dict(st); model.eval()
 print('Model loaded: xyz_best_weighted.pt')
 
-# ===== 收集 500 个双几何样本 =====
+# ===== Collect 500 dual-geometry samples =====
 N_SAMPLE = 500
 pairs = []  # (csv_idx, smiles, y_true, gA, gB)
 n_etkdg_tried = n_etkdg_ok = 0
@@ -333,7 +333,7 @@ for csv_i in sorted(mols):
     if len(pairs) >= N_SAMPLE: break
 print(f'ETKDG tried: {n_etkdg_tried}, success: {n_etkdg_ok}, sampled: {len(pairs)}')
 
-# ===== 推理 =====
+# ===== Inference =====
 preds_a, preds_b, yt_all = [], [], []
 with torch.no_grad():
     for csv_i, smi, y, ga, gb in pairs:
@@ -345,7 +345,7 @@ preds_a = np.array(preds_a); preds_b = np.array(preds_b); yt_all = np.array(yt_a
 np.savez('s2_preds.npz', preds_train_geom=preds_a, preds_etkdg_geom=preds_b, y_true=yt_all,
          csv_idx=[p[0] for p in pairs])
 
-# ===== 指标 =====
+# ===== Metrics =====
 def r2(y, p):
     ss_res = ((y - p) ** 2).sum(); ss_tot = ((y - y.mean()) ** 2).sum()
     return float(1 - ss_res / ss_tot)

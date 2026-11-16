@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""S3: 推理延迟/吞吐量基准（当前环境实测；GPU 数字留待训练机补测）
-不涉及训练。输出 s3_inference_bench.json。"""
+"""S3: Inference latency/throughput benchmark (measured on the current environment; GPU numbers to be filled in on the training machine)
+No training involved. Outputs s3_inference_bench.json."""
 import time
 import json
 import platform
@@ -177,7 +177,7 @@ def collate_cpu(gs):
             'edge_attr': torch.cat(ea_list, dim=0)}, torch.cat(batch_list, dim=0)
 
 
-# ---------- 模型加载 ----------
+# ---------- Model loading ----------
 sm_state = torch.load('tmqm_gat_best.pt', map_location='cpu', weights_only=False)
 sm_state = {k.replace('_orig_mod.', ''): v for k, v in sm_state.items()}
 model_sm = TMetalGNN(8, 6); model_sm.load_state_dict(sm_state); model_sm.eval()
@@ -189,7 +189,7 @@ model_3d = TMetalGNN(11, 23); model_3d.load_state_dict(st3); model_3d.eval()
 n_3d = sum(p.numel() for p in model_3d.parameters())
 print(f'SMILES GAT params: {n_sm:,}; 3D GAT params: {n_3d:,}')
 
-# ---------- 代表分子 ----------
+# ---------- Representative molecule ----------
 TEST_SM = 'Br[Ni]1([N]2=C3C4=[N]1C=CC(C5=CC=C(C(F)(F)F)C=C5)=C4C=CC3=C(C6=CC=C(C(F)(F)F)C=C6)C=C2)Br'  # Ni-cat1
 g_sm = smiles_to_graph(TEST_SM)
 g_3d = smiles_to_3d_graph(TEST_SM)
@@ -219,7 +219,7 @@ with torch.no_grad():
     out['latency_ms']['3d_gat_batch1'] = round(t_3d1 * 1000, 3)
     print(f'3D GAT batch=1: {t_3d1*1000:.3f} ms')
 
-    # batch=128 吞吐（SMILES GAT，用 Ni-cat1 图复制 128 份）
+    # batch=128 throughput (SMILES GAT, 128 copies of the Ni-cat1 graph)
     gs = [smiles_to_graph(TEST_SM) for _ in range(128)]
     b, bi = collate_cpu(gs)
     t0 = time.perf_counter()
@@ -228,7 +228,7 @@ with torch.no_grad():
     out['throughput'] = {'smiles_gat_batch128_ms': round(dt * 1000, 2),
                          'complexes_per_sec_batch128': round(128 / dt, 1)}
     print(f'SMILES GAT batch=128: {dt*1000:.2f} ms ({128/dt:.1f} complexes/s)')
-    # batch=128 吞吐（3D GAT，复用同一图 128 份，避免重复 ETKDG）
+    # batch=128 throughput (3D GAT, reuse the same graph 128 times to avoid repeated ETKDG)
     gs3 = [g_3d] * 128
     b3, bi3 = collate_cpu(gs3)
     t0 = time.perf_counter()
@@ -238,7 +238,7 @@ with torch.no_grad():
     out['throughput']['3d_complexes_per_sec_batch128'] = round(128 / dt3, 1)
     print(f'3D GAT batch=128: {dt3*1000:.2f} ms ({128/dt3:.1f} complexes/s)')
 
-# ETKDG+MMFF 生成延迟（Ni-cat1）
+# ETKDG+MMFF generation latency (Ni-cat1)
 def etkdg_once():
     mol = Chem.MolFromSmiles(TEST_SM)
     mol = Chem.AddHs(mol)

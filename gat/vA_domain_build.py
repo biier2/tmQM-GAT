@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""vA 域 (论文主域 90,317) SMILES 图数据包构建 — 意见6 方案B 数据准备 (本地, rdkit2024 环境)
-背景: 服务器 R5 自检失败 (te_idx 相同 / y_true 不同) → r2b_graphs.pt 前 90,317 ≠ 论文主域行序
-(服务器 rdkit 与论文 pinned 栈 RDKit 2024.03 的 ±19 解析差异导致保留序列错位)。
-本脚本用论文管线 (eval_smiles_gat.py 逐字同逻辑, 已证 0.932 复现) 在本地建出
-论文主域 90,317 个 SMILES 图 (node 8d / edge 6d, 与 R3/R5 协议截断特征一致) + 标签,
-自检 y_all[te_idx] 与 ensemble_predictions.npz 逐位一致后打包:
+"""Build the vA domain (manuscript main domain 90,317) SMILES graph package — comment 6 plan B data preparation (local, rdkit2024 environment)
+Background: the server-side R5 self-check failed (te_idx identical / y_true different) → the first 90,317 of r2b_graphs.pt ≠ the manuscript main-domain row order
+(the ±19 parsing difference between the server rdkit and the pinned manuscript stack RDKit 2024.03 shifted the kept sequence).
+This script uses the manuscript pipeline (logic verbatim identical to eval_smiles_gat.py, 0.932 reproduction already verified) to build locally
+the manuscript main domain's 90,317 SMILES graphs (node 8d / edge 6d, consistent with the truncated features of the R3/R5 protocol) + labels,
+and packages them after the self-check shows y_all[te_idx] bit-identical to ensemble_predictions.npz:
   vA_domain_smiles.pt = {'graphs': [...], 'y_all': tensor(90317,8), 'atoms_filt': [...]}
-上传服务器后 R5 直接加载本包训练 (不再截断 r2b_graphs.pt)。
+After uploading to the server, R5 loads this package directly for training (no longer truncating r2b_graphs.pt).
 """
 import sys, gzip
 sys.stdout.reconfigure(encoding='utf-8')
@@ -21,9 +21,9 @@ RENAME = {'HL_Gap': 'gap', 'HOMO_Energy': 'homo', 'LUMO_Energy': 'lumo',
           'Dispersion_E': 'E_disp', 'Polarizability': 'polarizability'}
 df_y = df_y.rename(columns=RENAME)
 targets = ['gap', 'homo', 'lumo', 'dipole', 'metal_charge', 'E_elec', 'E_disp', 'polarizability']
-print(f'csv: {len(df_y):,} 行', flush=True)
+print(f'csv: {len(df_y):,} rows', flush=True)
 
-# ===== XYZ+BO 解析 (与 ensemble CV / eval_smiles_gat.py 完全相同逻辑) =====
+# ===== XYZ+BO parsing (logic exactly the same as the ensemble CV / eval_smiles_gat.py) =====
 def atom_to_z(sym):
     tbl = {"H":1,"He":2,"Li":3,"Be":4,"B":5,"C":6,"N":7,"O":8,"F":9,"Ne":10,
            "Na":11,"Mg":12,"Al":13,"Si":14,"P":15,"S":16,"Cl":17,"Ar":18,
@@ -80,10 +80,10 @@ all_m = []
 for part in [1, 2, 3]:
     m = parse_one_full(f'{ROOT}/tmQM_X{part}.xyz.gz', f'{ROOT}/tmQM_X{part}.BO.gz', start_idx=len(all_m))
     all_m.extend(m)
-    print(f'  Part {part}: {len(m):,} (累计 {len(all_m):,})', flush=True)
+    print(f'  Part {part}: {len(m):,} (cumulative {len(all_m):,})', flush=True)
 print(f'Total: {len(all_m):,} TM complexes', flush=True)
 
-# ===== SMILES 建图 (node 8d / edge 6d — 与 r2b/r3/r5 截断特征逐位一致) =====
+# ===== SMILES graph construction (node 8d / edge 6d — bit-identical to the truncated features of r2b/r3/r5) =====
 ELEMENT_DATA_SM = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),44:(5,8),45:(5,9),46:(5,10),47:(5,11),48:(5,12),53:(5,17),72:(6,4),73:(6,5),74:(6,6),75:(6,7),76:(6,8),77:(6,9),78:(6,10),79:(6,11),80:(6,12)}
 BOND_TYPES_SM = [1,2,3,12]; B2I_SM = {b:i for i,b in enumerate(BOND_TYPES_SM)}; N_BT_SM = 4
 smiles_by_idx = df_y['SMILES'].tolist()
@@ -135,30 +135,30 @@ graphs = [g for i, g in enumerate(graphs) if mask[i]]
 y_all = y_all[mask]
 atoms_filt = [a for i, a in enumerate(atoms_filt) if mask[i]]
 kept_tmpos = [p for i, p in enumerate(kept_tmpos) if mask[i]]
-print(f'Built {len(graphs):,} graphs (SMILES 失败 {failed:,}, NaN/inf 剔除 {(~mask).sum():,})', flush=True)
+print(f'Built {len(graphs):,} graphs (SMILES failures {failed:,}, NaN/inf removed {(~mask).sum():,})', flush=True)
 
-# ===== 论文主域 90,317 = 保留序列的前 90,317 个 (README 2026-08-28 终版结论, 前缀截断) =====
-# 服务器 (tmqm rdkit) 保留 95,152, 锚点第 90,317 个保留分子 = TM 块 #97,045;
-# 本机 rdkit2024 保留 95,171 (+19)。截断后的逐位一致性由下方 y_true 自检实锤。
+# ===== Manuscript main domain 90,317 = the first 90,317 of the kept sequence (README 2026-08-28 final conclusion, prefix truncation) =====
+# the server (tmqm rdkit) keeps 95,152, with the 90,317th kept molecule as anchor = TM block #97,045;
+# locally rdkit2024 keeps 95,171 (+19). Bit-identical consistency after truncation is nailed down by the y_true self-check below.
 if len(graphs) > 90317:
-    print(f'[truncate] 保留 {len(graphs):,} > 90,317 → 前缀截断; 本机锚点: 第 90,317 个保留分子 = TM 块 #{kept_tmpos[90316]} (服务器锚点 97,045)', flush=True)
+    print(f'[truncate] kept {len(graphs):,} > 90,317 → prefix truncation; local anchor: the 90,317th kept molecule = TM block #{kept_tmpos[90316]} (server anchor 97,045)', flush=True)
     graphs = graphs[:90317]
     y_all = y_all[:90317]
     atoms_filt = atoms_filt[:90317]
-assert len(graphs) == 90317, f'图数 {len(graphs):,} != 90,317 — 本地文件或管线与论文主域不一致'
+assert len(graphs) == 90317, f'graph count {len(graphs):,} != 90,317 — local files or pipeline inconsistent with the manuscript main domain'
 
-# ===== 对齐自检: te_idx 逐位核对 (与服务器 R5 自检同一口径) =====
+# ===== Alignment self-check: bit-level te_idx verification (same convention as the server-side R5 self-check) =====
 sp = np.load('data_tmQM/paper_domain_vA/ensemble_split.npz')
 te_idx = sp['te_idx']; cv_idx = sp['cv_idx']
 ep = np.load('ensemble_predictions.npz')
 same_te = np.array_equal(ep['te_idx'], te_idx)
 yt_here = y_all[te_idx].numpy()
 same_yt = np.allclose(yt_here, ep['y_true'], atol=1e-4)
-print(f'对齐自检: te_idx 相同={same_te}, y_true 相同={same_yt}', flush=True)
-assert same_te and same_yt, '!! 本地包与 3D 集成行序不一致, 中止'
+print(f'alignment self-check: te_idx identical={same_te}, y_true identical={same_yt}', flush=True)
+assert same_te and same_yt, '!! local package row order inconsistent with the 3D ensemble, aborting'
 all_idx = np.concatenate([te_idx, cv_idx])
 assert len(set(all_idx.tolist())) == 90317 and all_idx.min() == 0 and all_idx.max() == 90316
-print('划分完整性 ✓ (te+cv 恰为 0..90,316 全排列)', flush=True)
+print('split integrity ✓ (te+cv is exactly a permutation of 0..90,316)', flush=True)
 
 torch.save({'graphs': graphs, 'y_all': y_all, 'atoms_filt': atoms_filt}, 'vA_domain_smiles.pt')
 print('saved -> vA_domain_smiles.pt', flush=True)

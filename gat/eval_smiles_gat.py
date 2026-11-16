@@ -1,4 +1,4 @@
-"""SMILES GAT 在 3D 测试集上重评估 — 公平比较"""
+"""Re-evaluation of the SMILES GAT on the 3D test set — fair comparison"""
 import numpy as np, pandas as pd, torch, torch.nn as nn, gzip, os, json
 from torch.amp import autocast
 from sklearn.metrics import mean_absolute_error, r2_score
@@ -7,12 +7,12 @@ from tqdm import tqdm
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Device: {device}')
 
-# ===== 加载 split =====
+# ===== Load split =====
 split = np.load('data_tmQM/paper_domain_vA/ensemble_split.npz')
 te_idx = split['te_idx']
 print(f'Test set: {len(te_idx):,} samples (from ensemble CV)')
 
-# ===== 加载目标值 =====
+# ===== Load target values =====
 df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')
 df_y = df_y.rename(columns={
     'HL_Gap': 'gap', 'HOMO_Energy': 'homo', 'LUMO_Energy': 'lumo',
@@ -22,7 +22,7 @@ df_y = df_y.rename(columns={
 })
 targets = ['gap','homo','lumo','dipole','metal_charge','E_elec','E_disp','polarizability']
 
-# ===== SMILES GAT 模型定义 (与 tmQM_Fe.ipynb 完全相同) =====
+# ===== SMILES GAT model definition (exactly the same as tmQM_Fe.ipynb) =====
 SCALE_HIDDEN = 384; SCALE_LAYERS = 5; GAT_HEADS = 12; DROPOUT = 0.10
 
 def segment_softmax(scores, dst, N):
@@ -93,7 +93,7 @@ class TMetalGNN(nn.Module):
         mf = scatter_mean_per_graph(h[mm], batch[mm], n) if mm.any() else torch.zeros(n, h.size(1), device=h.device, dtype=h.dtype)
         return self.readout(torch.cat([mean_h, max_h, mf], dim=1))
 
-# ===== 加载checkpoint =====
+# ===== Load checkpoint =====
 print('Loading SMILES GAT checkpoint...')
 ckpt = torch.load('tmqm_gat_best.pt', map_location='cpu', weights_only=False)
 model = TMetalGNN(node_dim=8, edge_dim=6).to(device)
@@ -101,7 +101,7 @@ model.load_state_dict(ckpt)
 model.eval()
 print(f'Params: {sum(p.numel() for p in model.parameters()):,}')
 
-# ===== 加载 XYZ+BO (与 ensemble CV 完全相同的解析逻辑, 按 csv_idx 对齐 SMILES) =====
+# ===== Load XYZ+BO (parsing logic exactly the same as the ensemble CV, SMILES aligned by csv_idx) =====
 import gzip
 from rdkit import Chem; from rdkit import RDLogger; RDLogger.logger().setLevel(RDLogger.ERROR)
 
@@ -202,7 +202,7 @@ graphs = [g for i,g in enumerate(graphs) if mask[i]]
 y_all = y_all[mask]
 print(f'Built {len(graphs):,} graphs ({failed} failed, {len(graphs)} after NaN)')
 
-# SMILES GAT 训练用的 y_mean/y_std (从全量 108,541 CSV 计算, 与训练时的 100,849 几乎一致)
+# y_mean/y_std used in SMILES GAT training (computed from the full 108,541 CSV, almost identical to the 100,849 used at training time)
 y_mean_gat = torch.tensor([0.108505, -0.197591, -0.089089, 5.799378, 0.162882, -2987.275391, -0.142229, 397.123474])
 y_std_gat  = torch.tensor([0.033575,  0.053824,  0.054516, 3.927464, 0.782902,  1634.063721,  0.070114, 152.458313])
 print(f'y_mean: {y_mean_gat.tolist()}')
@@ -243,7 +243,7 @@ with torch.no_grad():
             p = model(batched, batch_idx).float().cpu()
         preds.append(p)
 preds = torch.cat(preds, dim=0)
-# 反归一化: SMILES GAT 输出的是 z-score 值, 需转回原始尺度
+# Denormalisation: the SMILES GAT outputs z-score values, which need converting back to the original scale
 preds_orig = preds * y_std_gat.unsqueeze(0) + y_mean_gat.unsqueeze(0)
 preds_np = preds_orig.numpy()
 yt = y_test_true.numpy()

@@ -24,16 +24,17 @@ This repository documents the model code, training and evaluation pipelines, bas
 | `gat/` | Main-model code: model development notebooks (`scorer.ipynb`, `scorer_3d.ipynb`), graph construction (`r2b_build.py`, `build_vA_graphs_local.py`), ensemble training (`r3_smiles_ensemble.py`, `r3b_xyz_ensemble.py`, `r5_smiles_va_ensemble.py`), domain reconstruction (`rebuild_vA_verbatim.py`), ETKDG test-graph construction and local conformer inference. |
 | `baselines/` | DimeNet++ pipeline (`dimenetpp_baseline/`), SchNet re-implementation and evaluation, benchmark builders (GCN / GIN / 3D-GCN / RF / XGB), the server training-evaluation package (`server_package/`), BOSTMC charge validation, and baseline notebooks. |
 | `analysis/` | Split-conformal calibration and gating (`s4_conformal*.py`, `s4_ensemble_std.py`), CPU inference benchmark (`s3_inference_bench.py`), enrichment factors (`s1_enrichment.py`), attention/occlusion attribution (`build_xai*.py`, `xai_*.ipynb`), physics-consistency experiments (`build_physics*.py`), ablations, composition-only control, external validation, and the audit/verification scripts (`_audit_*.py`, `verify_*.py`) used to check reported numbers. |
-| `figures/` | `FIGURE_PROVENANCE.md` (per-figure data/script/raster map), `figure_code_20261006/` (per-figure design renderers, numeric anchors and notes), `final_render_scripts/` (pre-revision server renderers, historical), `dev_scripts/` (earlier rendering iterations). |
+| `figures/` | `FIGURE_PROVENANCE.md` (per-figure data/script/raster map) and `figure_code_20261006/` (the per-figure design renderers, numeric anchors and notes that produce the figures in the manuscript). |
 | `results_tables/` | JSON results underpinning the printed tables: per-variant ensemble metrics, baseline scores, conformal/EF statistics, and audit recomputations. |
 | `data_indices/` | Split, index and provenance records: retained/excluded IDs, SMILES→XYZ atom maps, baseline splits, XAI indices, ablation and metal-weight tables, tmQMg pairs and case-study conformers (see `data_indices/README.md` for array names and shapes). |
 | `preds/` | Prediction archives for the eight GAT variants, SchNet, DimeNet++ and the tmQMg transfer set (`preds`, `ens_mean`, `y_true`, `te_idx`; see `preds/manifest.json` for shapes and md5 values). |
-| `repro/` | Recomputation scripts used for the Supporting Information (dual-RDKit parse reconciliation, Table S3 recomputation, conformal-quantile and gating checks, case-study MAE recalculation), data-version notes and domain content digests (`data_provenance_90k.md`, `domain_content_digests.json`, `verify_domain_content.py`), the review-package export/verification scripts under `repro/review_package_20261021/`, and the revised Figure 4 zero-padded retraining package under `repro/fig4_zeroed_20261021/`. |
+| `repro/` | Recomputation scripts used for the Supporting Information (dual-RDKit parse reconciliation, Table S3 recomputation, conformal-quantile and gating checks, case-study MAE recalculation), data-version notes and domain content digests (`data_provenance_90k.md`, `domain_content_digests.json`, `verify_domain_content.py`), the review-package export/verification scripts under `repro/review_package_20261021/`, the revised Figure 4 zero-padded retraining package under `repro/fig4_zeroed_20261021/`, and the Figure 5 test-set attribution recomputation under `repro/fig5_recompute_20261114/`. |
 | `run_scripts/` | Server run scripts (`.sh`) and the internal execution manual for the training campaigns. |
 | `deployment/` | Candidate-screening deployment notebooks (SMILES GAT scorer + 3D GNN dipole cross-check, `update_scorer.py`) and ligand-library utilities. |
-| `misc/` | Development diagnostics, legacy notebooks (`tmQM_Fe*`, `tmQM_SchNet*`), and the DFT input files for the in-house ten-catalyst case study. |
+| `misc/` | The DFT input files for the in-house ten-catalyst case study (`misc/dft_inputs/`). |
+| `archive/` | Development history kept for provenance only — one-off diagnostics, legacy notebooks, and superseded figure renderers. Not required to reproduce any reported number; see `archive/README.md`. |
 
-`MANIFEST.md` lists every file with size and md5 (snapshot 2026-10-22). The
+`MANIFEST.md` lists every file with size and md5 (snapshot 2026-11-16). The
 checksums are over the committed bytes; `.gitattributes` forces LF line endings
 on checkout so that they verify identically on Windows, macOS and Linux.
 
@@ -55,7 +56,7 @@ conda env create -f environment_infer.yml   # inference stack
 
 ## Data
 
-The pipelines consume the public 2024 release of tmQM (CSV property table plus the `tmQM_X1/X2/X3` geometry and bond-order archives), placed in a local `data_tmQM/` directory; see `repro/data_provenance_90k.md` for the 90,377-complex domain, `repro/数据版本说明.md` for the legacy 90,317-complex domain, and the per-folder READMEs for the exact files used by each stage.
+The pipelines consume the public 2024 release of tmQM (CSV property table plus the `tmQM_X1/X2/X3` geometry and bond-order archives), placed in a local `data_tmQM/` directory; see `repro/data_provenance_90k.md` for the 90,377-complex domain, `repro/data_version_notes.md` for the legacy 90,317-complex domain, and the per-folder READMEs for the exact files used by each stage.
 
 Prediction archives are included under `preds/`, and the row-level records that define the reported cohorts and partitions are under `data_indices/`. Graph tensors and the ~1.1 GB isomorphism map are not stored in the repository — they are regenerated by the provided scripts. Model checkpoints and the Gaussian output logs are distributed as assets of the `v1.0-review` GitHub release (see `REVIEW_PACKAGE.md`); the two single-model checkpoints used in Figure 4 are listed in `repro/fig4_zeroed_20261021/README.md`.
 
@@ -172,7 +173,7 @@ of the file md5.
 
 ## Review package
 
-`REVIEW_PACKAGE.md` indexes the row-level records, split definitions and prediction archives, together with the scripts that generated them. Model checkpoints and the twelve Gaussian output logs are attached to the `v1.0-review` GitHub release rather than stored in the git history. The revised Figure 4 package, including the retraining code, result archives and expected values, is under `repro/fig4_zeroed_20261021/`.
+`REVIEW_PACKAGE.md` indexes the row-level records, split definitions and prediction archives, together with the scripts that generated them. Model checkpoints and the twelve Gaussian output logs are attached to the `v1.0-review` GitHub release rather than stored in the git history. The revised Figure 4 package, including the retraining code, result archives and expected values, is under `repro/fig4_zeroed_20261021/`; the Figure 5 test-set recomputation, which regenerates the embedded raster byte for byte, is under `repro/fig5_recompute_20261114/`.
 
 ## License
 

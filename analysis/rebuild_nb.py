@@ -22,28 +22,28 @@ def add_cell(cell_type, source, cell_id, outputs=None):
     cells.append(c)
 
 # === Cell 1: markdown intro ===
-add_cell("markdown", """# 过渡金属配合物预测：XYZ → 距离边 GNN
+add_cell("markdown", """# Transition-metal complex prediction: XYZ → distance-edge GNN
 
-## 与 SMILES 版 GNN 对比
+## Comparison with the SMILES-version GNN
 
-| | **本 notebook (XYZ版)** | tmQM_Fe.ipynb (SMILES版) |
+| | **This notebook (XYZ version)** | tmQM_Fe.ipynb (SMILES version) |
 |---|---|---|
-| 输入 | XYZ 坐标 (3D) | SMILES (2D) |
-| 边 | **纯距离边 (cutoff=4A)** | 化学键边 |
-| 信息 | 3D 空间关系 | 2D 连接关系 |
-| 数据 | data_tmQM/local_vB/tmQM_X1.xyz.gz (68MB) | data_tmQM/local_vB/tmQM_y.csv 内嵌 SMILES |
-| 化学键 | 不依赖 | RDKit 解析 |
-| 适合性质 | 构象敏感的 (偶极矩) | 拓扑决定的 (gap) |
+| Input | XYZ coordinates (3D) | SMILES (2D) |
+| Edges | **distance edges only (cutoff=4A)** | chemical-bond edges |
+| Information | 3D spatial relationships | 2D connectivity |
+| Data | data_tmQM/local_vB/tmQM_X1.xyz.gz (68MB) | data_tmQM/local_vB/tmQM_y.csv with embedded SMILES |
+| Chemical bonds | not required | parsed by RDKit |
+| Suitable properties | conformation-sensitive (dipole moment) | topology-determined (gap) |
 
-### 设计思路
+### Design rationale
 ```
-XYZ坐标 → 计算原子间距 → cutoff内连边 → 高斯径向基编码距离 → GNN
+XYZ coordinates → compute interatomic distances → connect edges within the cutoff → Gaussian radial basis encoding of distances → GNN
 ```
-不需要化学键定义——纯粹从 3D 几何构建图。这是 SchNet/DimeNet 类 3D GNN 的简化版。""", "e704b450")
+No chemical-bond definitions are needed -- the graph is built purely from 3D geometry. This is a simplified version of SchNet/DimeNet-style 3D GNNs.""", "e704b450")
 
 # === Cell 2: Step 1 (imports) ===
 add_cell("code", """# ============================================================
-# Step 1: 导入库 + GPU
+# Step 1: Import libraries + GPU
 # ============================================================
 import numpy as np, pandas as pd, time, gzip, os
 import matplotlib.pyplot as plt, seaborn as sns, warnings, urllib.request
@@ -62,7 +62,7 @@ print('Imports OK')""", "72b13f0b")
 
 # === Cell 3: Step 2 (load CSV) ===
 add_cell("code", """# ============================================================
-# Step 2: 加载 tmQM_y.csv (目标值, 本地文件)
+# Step 2: Load tmQM_y.csv (target values, local file)
 # ============================================================
 print('Loading tmQM_y.csv from local...')
 df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')
@@ -174,7 +174,7 @@ print(f"Total: {len(fe_cmplx)} TM, {int(is_Fe.sum())} Fe")""", "48144591")
 
 # === Cell 5: Step 4 (build hybrid graphs) ===
 add_cell("code", """# ============================================================
-# Step 4: SMILES拓扑 + DFT距离/BO + 金属空间边 (K=6, 仅TM)
+# Step 4: SMILES topology + DFT distances/BO + metal spatial edges (K=6, TM only)
 # ============================================================
 from tqdm import tqdm
 from rdkit import Chem
@@ -202,7 +202,7 @@ def fast_match(sm_atoms, xyz_atoms):
 
 rbf_c = np.linspace(1.0, 5.0, 8)
 
-# ===== 建图 =====
+# ===== Graph construction =====
 smiles_by_idx = df_y['SMILES'].tolist()
 print(f'Building graphs (SMILES bonds + K={K_SPATIAL} metal spatial edges)')
 graphs, y_vals, is_Fe_filt, failed = [], [], [], 0
@@ -220,7 +220,7 @@ for idx, m in enumerate(tqdm(fe_cmplx, desc='Building')):
     sm_to_xyz = fast_match(sm_atoms, m['atoms'])
     coords = m['coords']; bo_mat = m.get('bo')
 
-    # 节点: SMILES 8 + BO统计 3 = 11
+    # Nodes: SMILES 8 + BO statistics 3 = 11
     xf = [atom_features_sm(a) for a in mol.GetAtoms()]
     if bo_mat is not None:
         for i in range(N):
@@ -238,7 +238,7 @@ for idx, m in enumerate(tqdm(fe_cmplx, desc='Building')):
     src, dst, battr = [], [], []
     bond_set = set()
 
-    # 化学键边
+    # Chemical-bond edges
     for bond in mol.GetBonds():
         i, j = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
         bond_set.add((i,j)); bond_set.add((j,i))
@@ -258,7 +258,7 @@ for idx, m in enumerate(tqdm(fe_cmplx, desc='Building')):
         for mu in rbf_c: bf.append(np.exp(-(d-mu)**2/0.3))
         bf.append(bo); battr.extend([bf,bf])
 
-    # 空间近邻边: 仅金属原子(Z>=21), K=6
+    # Spatial neighbour edges: metal atoms only (Z>=21), K=6
     for i in range(N):
         if sm_atoms[i] < 21: continue
         xi = sm_to_xyz[i]

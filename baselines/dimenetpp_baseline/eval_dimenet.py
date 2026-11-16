@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-"""DimeNet++ 基线 — 仅测试集评估 (服务器 GPU, 约 2-3 分钟/检查点)
+"""DimeNet++ baseline — test-set-only evaluation (server GPU, about 2-3 minutes per checkpoint)
 
-用途: R4 训练中途停止后, 对已保存的检查点补做正式的 13,547 测试集评估
-(训练脚本只在跑完全部 epoch 后自动评估; 本脚本单独补这一步, 不训练、不动检查点)。
+Purpose: after R4 training was stopped mid-way, run the official 13,547 test-set evaluation on the saved checkpoints
+(the training script evaluates automatically only after all epochs finish; this script performs this step separately, without training or touching the checkpoints).
 
-用法 (与 train_dimenet.py 同目录):
-  python eval_dimenet.py --all         # 评估 best + last 两个检查点 (推荐)
-  python eval_dimenet.py               # 只评估 dimenetpp_best.pt (协议检查点)
-  python eval_dimenet.py --ckpt dimenetpp_last.pt   # 指定检查点
+Usage (same directory as train_dimenet.py):
+  python eval_dimenet.py --all         # evaluate both the best and last checkpoints (recommended)
+  python eval_dimenet.py               # evaluate only dimenetpp_best.pt (protocol checkpoint)
+  python eval_dimenet.py --ckpt dimenetpp_last.pt   # specify a checkpoint
 
-输出: 逐性质 R²/MAE + [verify] mean R2 对照行;
-      best 检查点评估存 dimenet_test_preds.npz (与训练脚本最终产物同名),
-      其他检查点存 dimenet_test_preds_<名>.npz。
+Output: per-property R²/MAE + a [verify] mean R2 reference line;
+      the best-checkpoint evaluation is saved as dimenet_test_preds.npz (same name as the training script's final product),
+      other checkpoints are saved as dimenet_test_preds_<name>.npz.
 """
 import os, sys, argparse
 try:
@@ -34,8 +34,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data', default=os.path.join(SCRIPT_DIR, 'dimenet_data.npz'))
-parser.add_argument('--ckpt', default='dimenetpp_best.pt', help='检查点文件名 (--all 时忽略)')
-parser.add_argument('--all', action='store_true', help='评估 best 与 last 两个检查点')
+parser.add_argument('--ckpt', default='dimenetpp_best.pt', help='checkpoint filename (ignored with --all)')
+parser.add_argument('--all', action='store_true', help='evaluate both the best and last checkpoints')
 parser.add_argument('--batch-size', type=int, default=8)
 args = parser.parse_args()
 
@@ -47,7 +47,7 @@ y_mean_cpu = torch.from_numpy(D['y_mean'].astype(np.float32))
 y_std_cpu = torch.from_numpy(D['y_std'].astype(np.float32))
 
 def make_dataset(sel, tag):
-    """与 train_dimenet.py 完全一致 (NpzFile 列缓存 + z-score + (1,8) 形状)。"""
+    """Exactly identical to train_dimenet.py (NpzFile column cache + z-score + (1,8) shape)."""
     z_arr = D[f'z_{tag}']
     pos_arr = D[f'pos_{tag}']
     edge_arr = D[f'edge_{tag}']
@@ -63,10 +63,10 @@ def make_dataset(sel, tag):
 
 test_ds = make_dataset(range(len(D['test_sel'])), 'test')
 test_loader = DataLoader(test_ds, batch_size=args.batch_size, shuffle=False, num_workers=0)
-print(f'Test {len(test_ds)} (固定 13,547 测试集)', flush=True)
+print(f'Test {len(test_ds)} (fixed 13,547 test set)', flush=True)
 
 def build_model():
-    """与 train_dimenet.py 的模型构造完全一致。"""
+    """Exactly identical to the model construction in train_dimenet.py."""
     return DimeNetPlusPlus(
         hidden_channels=128, out_channels=len(TARGETS), num_blocks=4,
         int_emb_size=64, basis_emb_size=8, out_emb_channels=256,
@@ -87,12 +87,12 @@ def evaluate(loader, model):
 
 def report(ckpt_name):
     path = os.path.join(SCRIPT_DIR, ckpt_name)
-    assert os.path.exists(path), f'检查点不存在: {path}'
+    assert os.path.exists(path), f'checkpoint does not exist: {path}'
     ck = torch.load(path, map_location=device, weights_only=False)
     model = build_model()
     model.load_state_dict(ck['model'])
     print('=' * 70, flush=True)
-    print(f'检查点: {ckpt_name}  (epoch {ck.get("epoch", "?")}, best_val {ck.get("best_val", float("nan")):.5f})',
+    print(f'checkpoint: {ckpt_name}  (epoch {ck.get("epoch", "?")}, best_val {ck.get("best_val", float("nan")):.5f})',
           flush=True)
     print('=' * 70, flush=True)
     test_pred, test_y = evaluate(test_loader, model)
@@ -107,7 +107,7 @@ def report(ckpt_name):
         print(f'{t:<15} {r2:>8.4f} {mae:>10.4f}', flush=True)
     print(f'{"mean":<15} {np.mean(r2s):>8.4f} {np.mean(maes):>10.4f}', flush=True)
     print(f'[verify] {ckpt_name}: mean R2 = {np.mean(r2s):.4f}   '
-          f'(对照: 3D GAT 集成 0.903 / SMILES GAT 0.932, 同一 13,547 测试集)', flush=True)
+          f'(reference: 3D GAT ensemble 0.903 / SMILES GAT 0.932, same 13,547 test set)', flush=True)
     out = ('dimenet_test_preds.npz' if ckpt_name == 'dimenetpp_best.pt'
            else f'dimenet_test_preds_{os.path.splitext(ckpt_name)[0]}.npz')
     np.savez(os.path.join(SCRIPT_DIR, out), y_true=true_unstd, y_pred=pred_unstd, targets=np.array(TARGETS))

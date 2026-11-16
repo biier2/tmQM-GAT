@@ -8,20 +8,20 @@ with open(r'd:\ml\chem_ml6\scorer_3d_only.ipynb', 'r', encoding='utf-8') as f:
 for cell in nb['cells']:
     if cell.get('id') == '407e2506':
         cell['source'] = [l + '\n' for l in [
-            '# 3D GAT 分子打分器',
+            '# 3D GAT molecular scorer',
             '',
-            '## 单一模型：3D-enhanced GAT 预测全部 8 项性质',
+            '## Single model: 3D-enhanced GAT predicts all 8 properties',
             '',
             '```',
-            '候选 SMILES -> RDKit 建图 (SMILES bonds)',
-            '            -> ETKDG+MMFF 生成 3D 坐标',
-            '            -> 计算 RBF 距离编码 (16 centers, 1.0-5.0 A)',
-            '            -> 3D GAT 预测全部 8 项性质',
+            'candidate SMILES -> RDKit graph construction (SMILES bonds)',
+            '            -> ETKDG+MMFF generates 3D coordinates',
+            '            -> compute RBF distance encoding (16 centers, 1.0-5.0 A)',
+            '            -> 3D GAT predicts all 8 properties',
             '```',
             '',
-            '- 节点: 11 维 (SMILES 8d + BO 统计 3d, BO=0 at inference)',
-            '- 边: 23 维 (SMILES bonds 6d + RBF 16d + BO 1d, BO=0 at inference)',
-            '- 模型: 12-head GAT x 384d x 5 layers + metal-centric pooling'
+            '- Nodes: 11 dimensions (SMILES 8d + BO stats 3d, BO=0 at inference)',
+            '- Edges: 23 dimensions (SMILES bonds 6d + RBF 16d + BO 1d, BO=0 at inference)',
+            '- Model: 12-head GAT x 384d x 5 layers + metal-centric pooling'
         ]]
         break
 
@@ -30,18 +30,18 @@ for cell in nb['cells']:
     if cell.get('id') == '34fb7ed2':
         cell['source'] = [l + '\n' for l in [
             '# ============================================================',
-            '# Step 2: 3D GAT 单一模型 (SMILES GAT 已移除, 3D GAT 统一预测)',
+            '# Step 2: 3D GAT single model (SMILES GAT removed, 3D GAT predicts everything)',
             '# ============================================================',
-            '# 所有 8 项性质均由 3D GAT 预测',
-            '# 坐标由 ETKDG+MMFF 自动生成, 无需外部文件',
-            '# Mayer BO 在推理时设为 0'
+            '# All 8 properties are predicted by 3D GAT',
+            '# Coordinates are generated automatically by ETKDG+MMFF, no external files needed',
+            '# Mayer BO is set to 0 at inference'
         ]]
         break
 
 # Cell 3: Replace XYZ model with full 3D GAT
 g3d_source = [
     '# ============================================================',
-    '# Step 3: 3D GAT 模型 + SMILES->3D图构建 (ETKDG+MMFF, BO=0)',
+    '# Step 3: 3D GAT model + SMILES->3D graph construction (ETKDG+MMFF, BO=0)',
     '# ============================================================',
     '',
     'import os',
@@ -115,7 +115,7 @@ g3d_source = [
     'model_3d.eval()',
     "print(f'Params: {sum(p.numel() for p in model_3d.parameters()):,}')",
     '',
-    '# ===== SMILES -> 3D 图构建 (ETKDG + MMFF, RBF=16, BO=0) =====',
+    '# ===== SMILES -> 3D graph construction (ETKDG + MMFF, RBF=16, BO=0) =====',
     'import numpy as np',
     'RBF_CENTERS = np.linspace(1.0, 5.0, 16)',
     'RBF_SIGMA = 0.2',
@@ -178,10 +178,10 @@ for cell in nb['cells']:
 # Cell 4: Simplify scoring
 scoring_source = [
     '# ============================================================',
-    '# Step 4: 填入候选 + 3D GAT 打分',
+    '# Step 4: Fill in candidates + 3D GAT scoring',
     '# ============================================================',
     '',
-    '# ↓↓↓ 在这里填入你的候选 SMILES ↓↓↓',
+    '# ↓↓↓ fill in your candidate SMILES here ↓↓↓',
     'candidates = {',
     "    'Fe_dichloro_nitrato_diol_a': 'Cl[Fe]Cl.O[N+](=O)[O-].[Fe].OCCCO',",
     "    'Fe_dichloro_nitrato_diol_b': 'Cl[Fe](Cl)(O[N+](=O)[O-])(OCCCO)[Fe]',",
@@ -245,18 +245,18 @@ for cell in nb['cells']:
 for cell in nb['cells']:
     if cell.get('id') == 'ca4a2389':
         cell['source'] = [l + '\n' for l in [
-            '## 输出说明',
+            '## Output description',
             '',
-            '| 列 | 来源模型 | 说明 |',
+            '| Column | Source model | Description |',
             '|----|---------|------|',
-            '| 全部 8 项性质 | **3D GAT** | 单一模型预测所有性质 |',
-            '| E_elec_Ha | 3D GAT | 按此项排序, 越低越稳定 |',
-            '| dipole_D | 3D GAT | 基于 ETKDG+MMFF 生成坐标的 RBF 距离编码 |',
-            '| gap_Ha / homo_Ha / lumo_Ha | 3D GAT | 前线轨道能量 |',
+            '| All 8 properties | **3D GAT** | a single model predicts all properties |',
+            '| E_elec_Ha | 3D GAT | sorted by this column, lower is more stable |',
+            '| dipole_D | 3D GAT | RBF distance encoding based on ETKDG+MMFF-generated coordinates |',
+            '| gap_Ha / homo_Ha / lumo_Ha | 3D GAT | frontier orbital energies |',
             '',
-            '> 输入仅需 SMILES 字符串。3D 坐标由 ETKDG 构象搜索 + MMFF 力场优化自动生成。',
-            '> Mayer bond orders 在推理时设为 0。',
-            '> 使用 12-head GAT x 384d x 5 layers checkpoint。'
+            '> Input requires only a SMILES string. 3D coordinates are generated automatically by ETKDG conformer search + MMFF force-field optimization.',
+            '> Mayer bond orders are set to 0 at inference.',
+            '> Uses the 12-head GAT x 384d x 5 layers checkpoint.'
         ]]
         break
 

@@ -1,50 +1,53 @@
-# 图表代码整理（2026-10-06；2026-10-12 补录 Figure 5；2026-10-13 补录 Figure 7）—— 《图表问题(1).docx》涉及图：Figure 1 / 2 / 3 / 4 / 6
+# Figure rendering code
 
-**用途**：老师《图表问题(1).docx》对 5 张图提出修改意见。本文件夹按图分装「生成代码 + 数据 + 稿内版本图 + 逐条修改说明」，供逐张重改/重渲使用。
+One subfolder per figure. Each holds the **rendering script** and the small JSON
+or CSV inputs it reads. The folders do not carry rasters, model weights or large
+arrays: the picture itself lives in the manuscript, and the arrays live under
+`preds/` at the repository root.
 
-- 来源意见文档：`round7\图表问题(1).docx`（逐字全文见 `_老师意见原文_图表问题(1)_逐字段落.txt`）
-- 稿内主文件：`round7\终稿_ACS.docx`（163 段 / 5 表 / 8 图）；老师重写稿：`round7\zw-1.docx`
-- 全部文件 md5/来源清单：`_文件清单_md5.txt`（2026-10-13 补录 Figure 7 后共 107 个文件 + 清单本身 = 108 个，合计约 44.0 MB；各文件夹 README、补录与备份文件均已登记在清单末尾）
-- 本整理**未改任何 docx**；各文件夹内文件名带「换图脚本」者的均为 docx 侧历史脚本（仅作归档，勿直接再跑）。
-- 《图表问题(1).docx》未涉及 Figure 5 与 Figure 7（稿内 image8 / image10）；Figure 5 已于 2026-10-12 补录（老师在 2026-10-02 另有关于 Figure 5(a)/(b) 区别的提问，答复见 `round7\老师建议三.md`）；Figure 7 已于 2026-10-13 补录（渲染脚本原存 D:\claude\round_5；已在本机逐字节复现稿内版）。
+The raster currently embedded in the submitted manuscript, with its md5 and pixel
+size for every figure, is tracked centrally in
+[`../FIGURE_PROVENANCE.md`](../FIGURE_PROVENANCE.md). **That file is authoritative
+where the two disagree.** Figures 4, 5 and 7 were recomputed after these folders
+were assembled and now have their own reproduction packages:
 
-## 子文件夹一览
+| figure | current reproduction chain |
+|---|---|
+| Figure 4 | [`repro/fig4_zeroed_20261021/`](../../repro/fig4_zeroed_20261021/) |
+| Figure 5 | [`repro/fig5_recompute_20261114/`](../../repro/fig5_recompute_20261114/) |
+| Figure 7 | [`repro/fig7_r26_20261115/`](../../repro/fig7_r26_20261115/) |
 
-| 子文件夹 | 图 | 老师意见 | 终稿 media（md5 / 尺寸） | 生成代码 |
-|---|---|---|---|---|
-| `Figure1_模型架构图\` | Figure 1 | P001（字体太小；调大或换画法） | image1.png（4655193e / 5736×2199） | **无（手工绘制，无渲染脚本）** |
-| `Figure2_八性质对比\` | Figure 2 | P002–P019（DFT→Reference 等 5 条） | image11.png（0882b2c3 / 2965×2930，合并图） | render_fig2_spacious.py / render_fig2b_split.py / render_fig2c_v2.py（round5；稿内字节为用户版） |
-| `Figure3_基准对比\` | Figure 3(a)(b) | P020–P021 | image5.png（71e010c8 / 2760×1500）；image6.png（45b10150 / 2082×1080） | fig3a_7models.py（round6）；fig_profile.py（round5，稿内 (b) = 其输出逐字节相同） |
-| `Figure4_物理一致性\` | Figure 4 | P023–P025 | image7.png（488e2b38 / 6540×4085） | render_fig4_hd.py / render_fig4_plot.py（`物理限制实验代码\` 整目录） |
-| `Figure5_遮挡归因\` | Figure 5 | 《图表问题(1)》未涉及（10-02 老师另问 (a)/(b) 区别，已答复） | image8.png（d1e62e03 / 2400×1700） | reval_perturbation_A.py（数据）＋ render_fig5_new.py（渲染） |
-| `Figure6_tmQMg跨协议\` | Figure 6 | P026（附**模型身份更正**，务必先读） | image9.png（a7304087 / 2520×1380） | 数据 = server_crossfunct_A.py；重渲基底 = render_new_figs.py |
-| `Figure7_案例研究\` | Figure 7 | 《图表问题(1)》未涉及 | image10.png（6c7809c1 / 2400×1900） | render_fig7.py ＋ acs_style.py（蓝系版；脚本产物 = 稿内版，逐字节相同） |
+## Subfolders
 
-## 稿内版本对照（终稿 vs zw-1）
-
-zw-1 的 8 张图基本是终稿版的降采样/重编码（Figure 3(a)(b) 两图逐字节相同）；**Figure 1 例外**：
-
-| 图 | 终稿 md5 / 尺寸 | zw-1 md5 / 尺寸 | 备注 |
+| subfolder | figure | code kept here | data (paths relative to the subfolder) |
 |---|---|---|---|
-| Fig1 | 4655193e / 5736×2199 | 223c57e5 / 5739×2196 | **内容略旧**：zw-1 版缺底部两条注释（WBO 分析变体 / DEPLOYMENT），分支措辞 "Optional Geometry-Aware Scorer"（终稿版为 "Optional Cross-Check"）——重画以终稿版为准（见其 README 元素清单） |
-| Fig2 | 0882b2c3 / 2965×2930 | ac552a23 / 1320×1305 | 降采样 |
-| Fig3a | 71e010c8 / 2760×1500 | 71e010c8 | 相同 |
-| Fig3b | 45b10150 / 2082×1080 | 45b10150 | 相同 |
-| Fig4 | 488e2b38 / 6540×4085 | 2eead5b4 / 1320×824 | 降采样 |
-| Fig5 | d1e62e03 / 2400×1700 | 3811fd48 / 1254×888 | （《图表问题(1)》未涉及；zw-1 与 zw-2 两版逐字节相同） |
-| Fig6 | a7304087 / 2520×1380 | 0b34b22b / 1356×742 | 降采样 |
-| Fig7 | 6c7809c1 / 2400×1900 | 85bc3b0b / 1320×1045 | （老师未涉及；zw-1 版 = 终稿版 0.55× 降采样） |
+| `Figure1_model_architecture/` | Figure 1 | **none — hand-drawn** | the README's element list is the drawing spec |
+| `Figure2_eight_property_comparison/` | Figure 2 | `fig2_plot.py` (single-canvas reproduction; `render_fig2*.py` are the older per-panel versions) | `preds/test_preds_A_8d6d.npz` |
+| `Figure3_baseline_comparison/` | Figure 3 | `fig3_plot.py` (both panels, manuscript canvas; `fig3a_7models.py` / `fig_profile.py` are the older per-panel versions) | `r1_final_tables.json`, `baseline_results_new.json` |
+| `Figure4_physics_consistency/` | Figure 4 | superseded — see above | — |
+| `Figure5_occlusion_attribution/` | Figure 5 | superseded — see above | — |
+| `Figure6_tmQMg_cross_protocol/` | Figure 6 | `fig6_plot.py` (manuscript canvas; `render_new_figs.py` is the older 1,320 × 760 draft), `current_manuscript_data/server_crossfunct_A.py` | `preds/crossfunct_A_preds.npz`, `current_manuscript_data/crossfunct_A_results.json` |
+| `Figure7_case_study/` | Figure 7 | superseded — see above; `render_fig7.py` + `acs_style.py` are the round-7 draft renderers | `data_and_rerun_scripts/case_study_new_results.json` |
 
-## 稿内字节 ≠ 脚本输出的原因（对照用）
+## Conventions
 
-- Figure 3(a)：稿内 = fig3a_7models.py 的**服务器重渲版**（同一脚本、字体/边距差异；逐条像素比恒 0.9823）。
-- Figure 2 / 4 / 5 / 6：稿内版由用户在脚本设计稿基础上重渲/合成（磁盘上无同字节文件）。
-- Figure 7（例外）：稿内版 = `render_fig7.py`（蓝系版，原存 D:\claude\round_5）直接产物，逐字节相同（2026-10-13 本机复现验证）。
-- 因此每个文件夹同时给出「**图_稿内版本**」（改字须以它为准）与「**设计稿渲染件**」（代码直接产物）。
+- **Numerical red line.** Figure edits may touch text and style only. Every folder
+  lists the numeric anchors of its figure; none of them may change.
+- **Script output is usually not the manuscript raster.** Figures 5 and 7
+  regenerate their embedded rasters byte for byte; Figures 2, 3, 4 and 6 match
+  theirs to 91–97 % of pixels, the remainder being anti-aliasing and the exact
+  density/jitter parameters the original did not record. Each README, and the
+  table in [`../FIGURE_PROVENANCE.md`](../FIGURE_PROVENANCE.md), gives the
+  measured number for its own figure.
+- **Figure 3(a)(b) labels** were eventually drawn into the figure and the two
+  free-standing "(a)" / "(b)" paragraphs were removed from the main text at the
+  same time.
+- **Older dev scripts** that were superseded during the revision are in
+  [`archive/figure_dev_scripts/`](../../archive/figure_dev_scripts/).
 
-## 建议工作流
+## History
 
-1. 逐张打开子文件夹 README 第三节「修改点 → 代码位置」——老师每条意见都已对应到具体脚本行号或改字规则。
-2. 改脚本（或由系统直接在图上改字）→ 重渲 PNG → 替换稿内对应 media。
-3. 图 3 的 (a)(b) 标号并入图后，正文两个游离段（终稿 P064/P065）需随之删除（正文编辑，不在本文件夹范围）。
-4. 数值红线：所有修改只动文字/样式，**不得改任何数值**（各 README 均列出该图数值锚点）。
+Per-figure records — the advisor's verbatim comments, the item-by-item revision
+mapping to script line numbers, the draft-to-draft image comparison, and the
+version timelines — are in
+[`../../archive/figure_revision_notes/`](../../archive/figure_revision_notes/).

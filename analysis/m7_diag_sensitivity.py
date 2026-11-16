@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""M7 诊断: top-5 边界的硬件敏感性量化
-问题: notebook(GPU, fp32) A1 = donor 20.5%, 本机 CPU fp32 = 22.0% (两套 RDKit/torch 完全一致)
-诊断:
-  1) rank5-rank6 分数 gap 分布 (多少配合物的边界在浮点噪声内)
-  2) fp32 vs fp64 排名差异 -> 槽位翻转数 + f64 元素分布
-  3) 边序反转扰动 (模拟 GPU atomicAdd 归约顺序变化) -> 翻转数 + 元素分布
+"""M7 diagnostics: quantifying the hardware sensitivity of the top-5 boundary
+Problem: notebook (GPU, fp32) A1 = donor 20.5%, local CPU fp32 = 22.0% (the two RDKit/torch stacks are identical)
+Diagnostics:
+  1) rank5-rank6 score gap distribution (how many complexes have their boundary inside floating-point noise)
+  2) fp32 vs fp64 ranking difference -> number of slot flips + f64 element distribution
+  3) edge-order reversal perturbation (mimicking changes in GPU atomicAdd reduction order) -> flip count + element distribution
 """
 import sys, json, warnings
 sys.stdout.reconfigure(encoding='utf-8')
@@ -18,7 +18,7 @@ device = torch.device('cpu')
 torch.set_num_threads(16)
 torch.manual_seed(0)
 
-# ===== 复用 m7_carbon_donors_2024.py 的图构建 + 模型部分 (到 '# ===== 3.' 之前) =====
+# ===== Reuse the graph-building + model part of m7_carbon_donors_2024.py (up to before '# ===== 3.') =====
 src = open('d:/ml/chem_ml5/m7_carbon_donors_2024.py', encoding='utf-8').read()
 head = src.split('# ===== 3.')[0]
 exec(head)
@@ -26,14 +26,14 @@ exec(head)
 DONOR_CLS = {'N','O','S','P','Cl','Br','I'}
 METAL_SYM = {'Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ru','Rh','Pd','Ag','Cd','Pt','Au','Hg','Mo','W','Ir','Os','Re'}
 
-# ===== 逐配合物: fp32 注意力 + gap 统计 =====
-gaps = []            # rank5 - rank6 (fp32, 相对 rank5)
-flip_f64 = 0         # f64 vs f32 槽位翻转数
-flip_rev = 0         # 边序反转 vs 正序 槽位翻转数
+# ===== Per complex: fp32 attention + gap statistics =====
+gaps = []            # rank5 - rank6 (fp32, relative to rank5)
+flip_f64 = 0         # number of f64 vs f32 slot flips
+flip_rev = 0         # number of slot flips, reversed vs forward edge order
 f64_counts = defaultdict(int)
 rev_counts = defaultdict(int)
 f32_counts = defaultdict(int)
-boundary_donor_involved = 0   # rank5 或 rank6 至少一个是 donor
+boundary_donor_involved = 0   # at least one of rank5 / rank6 is a donor
 
 for i in tqdm(range(len(xai_graphs)), desc='diag'):
     g = xai_graphs[i]; sym = xai_symbols[i]
@@ -42,14 +42,14 @@ for i in tqdm(range(len(xai_graphs)), desc='diag'):
     alpha = attn_layers[-1].mean(dim=1)          # [E]
     ei = g['edge_index']; dst = ei[1]
 
-    # fp32 正序 (与 notebook/m7 相同)
+    # fp32 forward order (same as notebook/m7)
     na32 = torch.zeros(len(sym), dtype=torch.float32)
     na32.scatter_add_(0, dst, alpha)
     na32 = na32 / (na32.sum() + 1e-8)
     order32 = na32.argsort(descending=True)[:5].numpy()
     for idx in order32: f32_counts[sym[idx]] += 1
 
-    # gap rank5-rank6 (少于 6 原子时视为 0, 必然翻转)
+    # gap rank5-rank6 (treated as 0 when there are fewer than 6 atoms, necessarily flips)
     srt = torch.sort(na32, descending=True).values
     g5 = srt[4].item()
     g6 = srt[5].item() if len(srt) >= 6 else g5
@@ -59,13 +59,13 @@ for i in tqdm(range(len(xai_graphs)), desc='diag'):
     if sym[order32[4]] in DONOR_CLS or (r6 is not None and r6 in DONOR_CLS):
         boundary_donor_involved += 1
 
-    # fp64 参考排名 (edge_index 保持 long, 非张量键原样)
+    # fp64 reference ranking (edge_index kept as long, non-tensor keys passed through as is)
     g64 = {k: (v.double() if isinstance(v, torch.Tensor) and k != 'edge_index' else v)
            for k, v in g.items()}
     with torch.no_grad():
         model_d = model.double()
         _, attn_layers64 = model_d(g64, return_attn=True)
-        model.float()  # 恢复
+        model.float()  # restore
     alpha64 = attn_layers64[-1].mean(dim=1)
     na64 = torch.zeros(len(sym), dtype=torch.float64)
     na64.scatter_add_(0, dst, alpha64)
@@ -74,7 +74,7 @@ for i in tqdm(range(len(xai_graphs)), desc='diag'):
     for idx in order64: f64_counts[sym[idx]] += 1
     flip_f64 += len(set(order32) - set(order64))
 
-    # 边序反转 (把 dst 索引整体倒序再加 -> 归约顺序变化, 模拟 GPU atomic 不确定性)
+    # Edge-order reversal (index dst in reverse order before accumulating -> reduction order changes, mimicking GPU atomic nondeterminism)
     rev = torch.arange(len(dst) - 1, -1, -1)
     na_rev = torch.zeros(len(sym), dtype=torch.float32)
     na_rev.scatter_add_(0, dst[rev], alpha[rev])
@@ -85,12 +85,12 @@ for i in tqdm(range(len(xai_graphs)), desc='diag'):
 
 total = len(xai_graphs)
 T = total * 5
-print(f'\n配合物数: {total}')
+print(f'\nNumber of complexes: {total}')
 gaps = np.array(gaps)
-print(f'rank5-rank6 gap: 中位 {np.median(gaps):.2e} | <1e-7: {(gaps<1e-7).mean()*100:.1f}% | <1e-6: {(gaps<1e-6).mean()*100:.1f}% | <1e-5: {(gaps<1e-5).mean()*100:.1f}% | <1e-4: {(gaps<1e-4).mean()*100:.1f}%')
-print(f'边界涉及 donor (rank5/rank6): {boundary_donor_involved} ({100*boundary_donor_involved/total:.1f}%)')
-print(f'fp32 vs fp64: 槽位翻转 {flip_f64} ({100*flip_f64/T:.2f}% of slots)')
-print(f'正序 vs 反序: 槽位翻转 {flip_rev} ({100*flip_rev/T:.2f}% of slots)')
+print(f'rank5-rank6 gap: median {np.median(gaps):.2e} | <1e-7: {(gaps<1e-7).mean()*100:.1f}% | <1e-6: {(gaps<1e-6).mean()*100:.1f}% | <1e-5: {(gaps<1e-5).mean()*100:.1f}% | <1e-4: {(gaps<1e-4).mean()*100:.1f}%')
+print(f'Boundary involves a donor (rank5/rank6): {boundary_donor_involved} ({100*boundary_donor_involved/total:.1f}%)')
+print(f'fp32 vs fp64: slot flips {flip_f64} ({100*flip_f64/T:.2f}% of slots)')
+print(f'forward vs reverse order: slot flips {flip_rev} ({100*flip_rev/T:.2f}% of slots)')
 
 def report(name, counts):
     d = sum(v for k, v in counts.items() if k in DONOR_CLS)
@@ -100,9 +100,9 @@ def report(name, counts):
     top = sorted(counts.items(), key=lambda kv: -kv[1])[:8]
     print(f'   top: {[(k, v) for k, v in top]}')
 
-report('fp32 正序', f32_counts)
+report('fp32 forward', f32_counts)
 report('fp64      ', f64_counts)
-report('fp32 反序', rev_counts)
+report('fp32 reverse', rev_counts)
 
 json.dump({
     'total': total,

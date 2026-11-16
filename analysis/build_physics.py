@@ -10,23 +10,23 @@ def add_code(src, cid):
     cells.append({"cell_type": "code", "metadata": {}, "execution_count": None, "outputs": [],
                   "source": [l + '\n' for l in src.split('\n')], "id": cid})
 
-# Cell 1: 简介
-add_md("""# 物理一致性约束：HL-Gap ≡ LUMO - HOMO
+# Cell 1: intro
+add_md("""# Physics consistency constraint: HL-Gap ≡ LUMO - HOMO
 
-## 背景
-由分子轨道理论定义，HOMO-LUMO Gap 天然等于 LUMO - HOMO：
+## Background
+By molecular orbital theory, the HOMO-LUMO gap is by construction equal to LUMO - HOMO:
 ```
 HL-Gap = E_LUMO - E_HOMO
 ```
-多任务学习模型将三者作为独立目标预测，可能违反此恒等式。
-tmGNN-XAI 加入了 L1 软约束 `loss += 0.1 × |gap - (lumo - homo)|`，最终达到了 0.0001 Ha 平均偏差。
+A multi-task model predicts the three as independent targets and may violate this identity.
+tmGNN-XAI added an L1 soft constraint `loss += 0.1 × |gap - (lumo - homo)|` and ultimately reached a mean deviation of 0.0001 Ha.
 
-## 本实验内容
-1. **评估现状**: 用已有 checkpoint 在测试集上计算 gap vs (LUMO - HOMO) 偏差
-2. **对比 tmGNN-XAI**: 差距多大？是否需要加约束？
-3. **(可选) 重训练**: 加 soft penalty 重训 XYZ GNN，验证改善""", "phy_intro")
+## What this experiment does
+1. **Assess the status quo**: compute the gap vs (LUMO - HOMO) deviation on the test set with the existing checkpoint
+2. **Compare with tmGNN-XAI**: how large is the gap? Is a constraint needed?
+3. **(Optional) Retrain**: retrain XYZ GNN with a soft penalty and verify the improvement""", "phy_intro")
 
-# Cell 2: 导入 + 模型定义
+# Cell 2: imports + model definition
 add_code("""import numpy as np, pandas as pd, torch, torch.nn as nn, os, sys, gzip, json
 import matplotlib.pyplot as plt, warnings
 warnings.filterwarnings('ignore')
@@ -45,7 +45,7 @@ from tqdm import tqdm
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12
 targets = ['gap', 'homo', 'lumo', 'dipole', 'metal_charge', 'E_elec', 'E_disp', 'polarizability']
 
-# ===== GAT模型 (与训练代码一致) =====
+# ===== GAT model (consistent with the training code) =====
 def segment_softmax(scores, dst, N):
     scores_f32 = scores.float()
     max_v = torch.full((N, scores_f32.size(1)), float('-inf'), device=scores_f32.device, dtype=torch.float32)
@@ -154,12 +154,12 @@ class SMILES_GAT_Eval(nn.Module):
 print('Model classes defined')
 """, "phy_model")
 
-# Cell 3: 加载 XYZ GNN + 评估
+# Cell 3: load XYZ GNN + evaluate
 add_code("""print('='*60)
-print('Step 1: XYZ GNN 物理一致性评估')
+print('Step 1: XYZ GNN physics consistency evaluation')
 print('='*60)
 
-# 加载XYZ checkpoint
+# load the XYZ checkpoint
 model_xyz = XYZ_GNN_Eval().to(device)
 ckpt_xyz = 'xyz_best.pt'
 if os.path.exists(ckpt_xyz):
@@ -170,7 +170,7 @@ else:
     print(f'{ckpt_xyz} not found, skipping XYZ GNN')
     model_xyz = None
 
-# 加载数据 + 建图 (XYZ+BO, 简化版: 只用SMILES构建测试图)
+# load the data + build graphs (XYZ+BO, simplified: build the test graphs from SMILES only)
 df_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')
 df_y = df_y.rename(columns={
     'HL_Gap': 'gap', 'HOMO_Energy': 'homo', 'LUMO_Energy': 'lumo',
@@ -203,15 +203,15 @@ def smiles_to_graph(smiles):
         bf.extend([is_ring, is_ml]); battr.extend([bf,bf])
     ei = torch.tensor([src,dst], dtype=torch.long) if src else torch.zeros(2,0,dtype=torch.long)
     ea_smiles = torch.tensor(battr, dtype=torch.float32) if battr else torch.zeros(0, N_BT+2)
-    # XYZ GNN需要11维节点 + 23维边, 补零对齐
-    x_xyz = torch.cat([x, torch.zeros(N, 3)], dim=1)  # 补3维BO统计
-    ea_xyz = torch.cat([ea_smiles, torch.zeros(ea_smiles.size(0), 17)], dim=1)  # 补16 RBF + 1 BO
+    # XYZ GNN needs 11-dim nodes + 23-dim edges, so pad with zeros to align
+    x_xyz = torch.cat([x, torch.zeros(N, 3)], dim=1)  # pad 3 dims of BO statistics
+    ea_xyz = torch.cat([ea_smiles, torch.zeros(ea_smiles.size(0), 17)], dim=1)  # pad 16 RBF + 1 BO
     return {'x_smiles': x, 'edge_attr_smiles': ea_smiles,
             'x': x_xyz, 'edge_attr': ea_xyz,
             'edge_index': ei, 'num_nodes': N}
     return {'x':x, 'edge_index':ei, 'edge_attr':ea}
 
-# 采样测试集 (快速评估: N=5000)
+# sample the test set (quick evaluation: N=5000)
 np.random.seed(42)
 smiles_list = [s for s in df_y['SMILES'].tolist() if isinstance(s, str) and s != '']
 sample_idx = np.random.choice(len(smiles_list), min(5000, len(smiles_list)), replace=False)
@@ -228,7 +228,7 @@ for idx in tqdm(sample_idx, desc='Building graphs'):
 y_true = np.array(y_true)
 print(f'Built {len(graphs)} graphs')
 
-# XYZ GNN推理
+# XYZ GNN inference
 xyz_results = None
 if model_xyz is not None:
     bs = 128
@@ -240,15 +240,15 @@ if model_xyz is not None:
                   for g in graphs[s:s+bs]]
             batched, batch_idx = collate_graphs(bg)
             preds_list.append(model_xyz(batched, batch_idx).cpu().numpy())
-    preds_xyz_norm = np.concatenate(preds_list, axis=0)  # Z-score值
+    preds_xyz_norm = np.concatenate(preds_list, axis=0)  # z-score values
 
-    # 反归一化: 模型输出是z-score, 需转回物理单位
+    # de-normalization: the model outputs z-scores, which must be converted back to physical units
     target_cols = ['gap', 'homo', 'lumo', 'dipole', 'metal_charge', 'E_elec', 'E_disp', 'polarizability']
     y_mean = df_y[target_cols].mean().values.astype(np.float32)
     y_std = df_y[target_cols].std().values.astype(np.float32)
     preds_xyz = preds_xyz_norm * y_std + y_mean
 
-    # 物理一致性: gap vs (lumo - homo) — 在物理空间计算
+    # physics consistency: gap vs (lumo - homo) — computed in physical space
     gap_pred = preds_xyz[:, 0]
     homo_pred = preds_xyz[:, 1]
     lumo_pred = preds_xyz[:, 2]
@@ -274,9 +274,9 @@ if model_xyz is not None:
     }
 """, "phy_xyz_eval")
 
-# Cell 4: 加载 SMILES GAT + 评估
+# Cell 4: load SMILES GAT + evaluate
 add_code("""print('='*60)
-print('Step 2: SMILES GAT 物理一致性评估')
+print('Step 2: SMILES GAT physics consistency evaluation')
 print('='*60)
 
 model_smiles = SMILES_GAT_Eval().to(device)
@@ -301,8 +301,8 @@ if model_smiles is not None:
                   for g in graphs[s:s+bs]]
             batched, batch_idx = collate_graphs(bg)
             preds_list.append(model_smiles(batched, batch_idx).cpu().numpy())
-    preds_sm_norm = np.concatenate(preds_list, axis=0)  # Z-score值
-    preds_sm = preds_sm_norm * y_std + y_mean  # 反归一化
+    preds_sm_norm = np.concatenate(preds_list, axis=0)  # z-score values
+    preds_sm = preds_sm_norm * y_std + y_mean  # de-normalization
 
     gap_pred_sm = preds_sm[:, 0]
     lumo_pred_sm = preds_sm[:, 2]
@@ -324,9 +324,9 @@ if model_smiles is not None:
     }
 """, "phy_smiles_eval")
 
-# Cell 5: 可视化
+# Cell 5: visualization
 add_code("""print('='*60)
-print('Step 3: 可视化')
+print('Step 3: visualization')
 print('='*60)
 
 fig, axes = plt.subplots(2, 3, figsize=(18, 11))
@@ -362,10 +362,10 @@ if smiles_results:
     ax.set_title(f'SMILES GAT: gap vs (LUMO-HOMO)\\nR²={r2_sm_gap:.4f}')
 ax.set_xlabel('LUMO_pred - HOMO_pred (Ha)'); ax.set_ylabel('gap_pred (Ha)')
 
-# (d) HOMO-LUMO排序违规检查
+# (d) check for HOMO-LUMO ordering violations
 ax = axes[1, 0]
 if xyz_results:
-    # HOMO应低于LUMO (更负)
+    # HOMO should lie below LUMO (more negative)
     homo_ok = xyz_results['homo_pred'] < xyz_results['lumo_pred']
     violation_rate = (~homo_ok).mean() * 100
     colors = ['#2ecc71' if ok else '#e74c3c' for ok in homo_ok]
@@ -375,7 +375,7 @@ if xyz_results:
     ax.set_xlabel('HOMO_pred (Ha)'); ax.set_ylabel('LUMO_pred (Ha)')
     ax.set_title(f'XYZ GNN: HOMO < LUMO?\\nViolation rate: {violation_rate:.2f}% (green=OK, red=violation)')
 
-# (e) 双模型偏差对比
+# (e) deviation comparison between the two models
 ax = axes[1, 1]
 methods = []; mean_devs = []; comply_001 = []; comply_010 = []
 if xyz_results:
@@ -398,7 +398,7 @@ lines1, labels1 = ax.get_legend_handles_labels()
 lines2, labels2 = ax2.get_legend_handles_labels()
 ax.legend(lines1 + lines2, labels1 + labels2, loc='upper left', fontsize=8)
 
-# (f) gap true vs deviation (检查是否有系统性偏差)
+# (f) gap true vs deviation (check for a systematic offset)
 ax = axes[1, 2]
 if xyz_results:
     ax.scatter(xyz_results['gap_true'], xyz_results['deviation']*1000, alpha=0.2, s=5, c='darkorange')
@@ -409,9 +409,9 @@ if xyz_results:
 plt.suptitle('Physics Consistency: HL-Gap = LUMO - HOMO Verification', fontsize=15, fontweight='bold', y=1.01)
 plt.tight_layout(); plt.show()
 
-# 汇总
+# summary
 print('\\n' + '='*60)
-print('物理一致性总结')
+print('Physics consistency summary')
 print('='*60)
 if xyz_results:
     print(f'XYZ GNN:  Mean dev={xyz_results["deviation"].mean()*1000:.4f} mHa, '
@@ -422,38 +422,38 @@ if smiles_results:
 print(f'tmGNN-XAI:  Mean dev=0.1 mHa, Compliance@0.01Ha=100%')
 """, "phy_viz")
 
-# Cell 6: 讨论
-add_md("""## 评估结论
+# Cell 6: discussion
+add_md("""## Evaluation conclusions
 
-### 判断标准
-- **偏差 < 0.001 Ha (1 mHa)**: 物理严格一致 → 无需软约束
-- **偏差 < 0.010 Ha (10 mHa)**: 可接受的模型误差 → 可选软约束改善
-- **偏差 > 0.010 Ha**: 需要加 L1 penalty 重训
+### Criteria
+- **deviation < 0.001 Ha (1 mHa)**: physically exact → no soft constraint needed
+- **deviation < 0.010 Ha (10 mHa)**: acceptable model error → an optional soft constraint may improve it
+- **deviation > 0.010 Ha**: an L1 penalty and retraining are needed
 
-### tmGNN-XAI 的做法
-他们在 loss 中加入 `0.1 × |HL-Gap - (LUMO - HOMO)|` 的 L1 惩罚项，最终达到 0.0001 Ha 平均偏差、100% 合规。
-如果我们的模型偏差较大，可在训练中类似加入：
+### What tmGNN-XAI did
+They added an L1 penalty term `0.1 × |HL-Gap - (LUMO - HOMO)|` to the loss, ultimately reaching a mean deviation of 0.0001 Ha and 100% compliance.
+If our model's deviation is larger, a similar term can be added during training:
 
 ```python
 physics_penalty = 0.1 * torch.abs(preds[:, 0] - (preds[:, 2] - preds[:, 1])).mean()
 loss = mse_loss + physics_penalty
 ```
 
-### HOMO-LUMO 排序违规
-HOMO 能量应该始终低于 LUMO (更负)。检查 `homo_pred < lumo_pred` 在所有样本上是否成立。违规率 > 1% 则说明模型学到了非物理的轨道排序。
+### HOMO-LUMO ordering violations
+The HOMO energy should always lie below the LUMO (more negative). Check whether `homo_pred < lumo_pred` holds for every sample. A violation rate > 1% would mean the model has learned a non-physical orbital ordering.
 """, "phy_discussion")
 
-# Cell 7: 可选重训练 (加soft penalty)
+# Cell 7: optional retraining (with a soft penalty)
 add_code("""# ============================================================
-# 可选: 加 physics penalty 重训练 XYZ GNN
-# 设定 RUN_RETRAIN=True 来执行
+# optional: retrain XYZ GNN with a physics penalty
+# set RUN_RETRAIN=True to run it
 # ============================================================
 RUN_RETRAIN = False
 
 if RUN_RETRAIN:
     print('Retraining XYZ GNN with physics consistency penalty...')
-    print('(需要GPU, ~1小时, 使用与tmQM_Fe_XYZ.ipynb相同的训练配置)')
-    # 此处与tmQM_Fe_XYZ.ipynb Cell 7训练代码一致, 仅在loss中加入:
+    print('(needs a GPU, ~1 hour, using the same training configuration as tmQM_Fe_XYZ.ipynb)')
+    # identical to the Cell 7 training code in tmQM_Fe_XYZ.ipynb, only the loss gains:
     # physics_loss = 0.1 * torch.abs(preds[:,0] - (preds[:,2] - preds[:,1])).mean()
     # loss = mse_loss + physics_loss
 else:

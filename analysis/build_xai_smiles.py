@@ -11,41 +11,41 @@ def add_code(src, cid):
                   "source": [l + '\n' for l in src.split('\n')], "id": cid})
 
 # ============================================================
-# Cell 0: 简介
+# Cell 0: intro
 # ============================================================
-add_md("""# GAT 注意力 + 扰动归因 双重 XAI 分析
+add_md("""# GAT attention + perturbation attribution dual XAI analysis
 
-## 设计
+## Design
 ```
-20,000 个过渡金属配合物 (全量数据随机采样)
+20,000 transition-metal complexes (random sample from the full dataset)
     │
-    ├── 注意力分析: 提取 GAT 第5层12头注意力权重
-    │   - 逐元素 top-5 出现率
-    │   - 逐性质注意力分布
-    │   - 逐金属类型注意力差异
-    │   - 多层注意力演变 (层1→层5)
+    ├── attention analysis: extract the layer-5, 12-head attention weights of the GAT
+    │   - per-element top-5 appearance rate
+    │   - per-property attention distribution
+    │   - per-metal-type attention differences
+    │   - attention evolution across layers (layer 1→layer 5)
     │
-    └── 扰动归因: 逐原子 mask → 预测变化量
+    └── perturbation attribution: per-atom mask → change in prediction
         - Signed occlusion sensitivity
-        - 配位原子 vs 碳的因果贡献
-        - 注意力 vs 扰动归因一致性检验
+        - causal contribution of donor atoms vs carbon
+        - consistency check between attention and perturbation attribution
 
-统计严谨性:
-- N=20,000 (tmGNN-XAI 测试集为 10,099)
-- 按金属类型分层统计
-- 所有结论附带标准差
+Statistical rigour:
+- N=20,000 (the tmGNN-XAI test set is 10,099)
+- stratified statistics by metal type
+- all conclusions accompanied by standard deviations
 ```
 
-## 方法论对比
-| 方法 | 原理 | 优势 | 局限 |
+## Method comparison
+| Method | Principle | Strength | Limitation |
 |------|------|------|------|
-| 注意力权重 | 信息流经量 | 免费, 训练过程中自然产生 | 相关性而非因果性 |
-| 扰动归因 | mask 原子 → Δ预测 | 因果性, 直接测量贡献 | 比注意力慢 |
-| 互补性 | 两者结合 | 交叉验证归因可靠性 | — |
+| attention weights | amount of information flowing through | free, arises naturally during training | correlational, not causal |
+| perturbation attribution | mask an atom → Δprediction | causal, directly measures the contribution | slower than attention |
+| complementarity | combining the two | cross-validates the reliability of the attribution | — |
 """, "xai_intro")
 
 # ============================================================
-# Cell 1: 导入 + 模型加载
+# Cell 1: imports + model loading
 # ============================================================
 add_code("""import numpy as np, pandas as pd, time, json, os
 import torch, torch.nn as nn
@@ -64,7 +64,7 @@ targets = ['gap','homo','lumo','dipole','metal_charge','E_elec','E_disp','polari
 smiles_by_idx = df_y['SMILES'].tolist()
 print(f'Loaded {len(df_y)} SMILES strings, {len(targets)} targets')
 
-# ===== 模型定义 =====
+# ===== model definition =====
 HIDDEN = 384; N_LAYERS = 5; GAT_HEADS = 12
 
 def segment_softmax(scores, dst, N):
@@ -149,9 +149,9 @@ print(f'Model ready: {sum(p.numel() for p in model.parameters()):,} params')
 """, "xai_model")
 
 # ============================================================
-# Cell 2: 构建 20,000 XAI 图
+# Cell 2: build 20,000 XAI graphs
 # ============================================================
-add_code("""# ===== SMILES → 分子图 (XAI只需图拓扑, 边特征用默认值) =====
+add_code("""# ===== SMILES → molecular graph (XAI only needs the graph topology, edge features use defaults) =====
 ELEMENT_DATA = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),44:(5,8),45:(5,9),46:(5,10),47:(5,11),48:(5,12),53:(5,17),72:(6,4),73:(6,5),74:(6,6),75:(6,7),76:(6,8),77:(6,9),78:(6,10),79:(6,11),80:(6,12)}
 BOND_TYPES=[1,2,3,12]; B2I={b:i for i,b in enumerate(BOND_TYPES)}; N_BT=4
 rbf_c=np.linspace(1.0,5.0,16)
@@ -174,7 +174,7 @@ def build_xai_graph(smiles):
         bf = [0.0]*N_BT
         if bt in B2I: bf[B2I[bt]] = 1.0
         bf.extend([is_ring, is_ml])
-        battr.extend([bf,bf])  # SMILES 6d (无 RBF/BO)
+        battr.extend([bf,bf])  # SMILES 6d (no RBF/BO)
     ei = torch.tensor([src,dst], dtype=torch.long) if src else torch.zeros(2,0,dtype=torch.long)
     ea = torch.tensor(battr, dtype=torch.float32) if battr else torch.zeros(0,6)
     syms = [a.GetSymbol() for a in mol.GetAtoms()]
@@ -206,7 +206,7 @@ print(f'Avg atoms/complex: {np.mean(xai_nums):.1f} +/- {np.std(xai_nums):.1f}')
 """, "xai_graphs")
 
 # ============================================================
-# Cell 3: 注意力分析 — 大规模逐元素统计
+# Cell 3: attention analysis — large-scale per-element statistics
 # ============================================================
 add_code("""print('=' * 60)
 print('PART A: Attention Analysis — N={:,} complexes'.format(N_XAI))
@@ -215,13 +215,13 @@ print('=' * 60)
 DONOR_SET = {'N','O','S','P','Cl','Br','I'}
 METAL_SET = {'Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ru','Rh','Pd','Ag','Cd','Pt','Au','Hg','Mo','W','Ir','Os','Re'}
 
-# === A1: 逐元素 Top-5 出现率 (最后一层) ===
+# === A1: per-element top-5 appearance rate (last layer) ===
 top5_counts_layer5 = defaultdict(int)
-# === A2: 逐性质 Top-5 ===
+# === A2: per-property top-5 ===
 propwise_top5 = {t: defaultdict(int) for t in targets}
-# === A3: 逐金属类型 ===
+# === A3: per-metal-type ===
 metalwise_top5 = defaultdict(lambda: defaultdict(int))
-# === A4: 多层注意力演变 ===
+# === A4: attention evolution across layers ===
 layerwise_donor_frac = defaultdict(list)
 
 total = 0
@@ -232,7 +232,7 @@ for i in tqdm(range(len(xai_graphs)), desc='Attention analysis'):
     with torch.no_grad():
         out, attn_layers = model(g_gpu, return_attn=True)
 
-    # 逐层提取 donor fraction
+    # extract the donor fraction layer by layer
     for layer_idx, alpha in enumerate(attn_layers):
         ei = g_gpu['edge_index']; dst = ei[1]
         node_attn = torch.zeros(len(sym), device=device)
@@ -241,14 +241,14 @@ for i in tqdm(range(len(xai_graphs)), desc='Attention analysis'):
         donor_total = sum(node_attn[j].item() for j, s in enumerate(sym) if s in DONOR_SET)
         layerwise_donor_frac[layer_idx].append(donor_total)
 
-    # DEBUG: 首个配合物逐层注意力差异
+    # DEBUG: per-layer attention differences for the first complex
     if i == 0:
         print(f'DEBUG: First complex ({len(sym)} atoms, metal={metal})')
         for l in range(len(attn_layers)-1):
             diff = (attn_layers[l] - attn_layers[l+1]).abs().mean().item()
             print(f'  Layer{l+1} vs Layer{l+2}: mean_abs_diff={diff:.6f} (0=bug)')
 
-    # DEBUG2: 前3个配合物的逐层donor fraction
+    # DEBUG2: per-layer donor fraction for the first 3 complexes
     if i < 3:
         print(f'DEBUG2: Complex {i} per-layer donor fractions:')
         for layer_idx, alpha in enumerate(attn_layers):
@@ -259,33 +259,33 @@ for i in tqdm(range(len(xai_graphs)), desc='Attention analysis'):
             df = sum(na[j].item() for j, s in enumerate(sym) if s in DONOR_SET)
             print(f'  Layer {layer_idx+1}: {df*100:.2f}%')
 
-    # Layer 5: 完整分析
+    # Layer 5: full analysis
     alpha_l5 = attn_layers[-1].mean(dim=1)
     ei = g_gpu['edge_index']; dst = ei[1]
     node_attn_l5 = torch.zeros(len(sym), device=device)
     node_attn_l5.scatter_add_(0, dst, alpha_l5)
     node_attn_l5 = node_attn_l5 / (node_attn_l5.sum() + 1e-8)
 
-    # A1: 全局 top-5
+    # A1: global top-5
     top5_idx = node_attn_l5.argsort(descending=True)[:5].cpu().numpy()
     for idx in top5_idx: top5_counts_layer5[sym[idx]] += 1
 
-    # A2: 逐性质注意力 —— 多任务GAT共享同一套注意力权重
-    # 各性质的注意力分布一致; per-property差异见扰动分析(B1-B2)
+    # A2: per-property attention — the multi-task GAT shares a single set of attention weights
+    # so the attention distribution is identical across properties; see the perturbation analysis (B1-B2) for per-property differences
     top5_idx_np = node_attn_l5.argsort(descending=True)[:5].cpu().numpy()
     for prop_name in targets:
         for idx in top5_idx_np: propwise_top5[prop_name][sym[idx]] += 1
 
-    # A3: 逐金属
+    # A3: per metal
     for idx in top5_idx: metalwise_top5[metal][sym[idx]] += 1
 
     total += 1
 
 print(f'\\nAnalyzed {total:,} complexes')
 
-# === 输出: 逐元素统计 ===
+# === output: per-element statistics ===
 print(f'\\n{\"=\"*70}')
-print('A1: 逐元素 Top-5 出现率 (Layer 5, N={:,})'.format(total))
+print('A1: per-element top-5 appearance rate (Layer 5, N={:,})'.format(total))
 print(f'{\"=\"*70}')
 print(f'{\"Element\":10s} {\"Count\":>8s} {\"%\":>8s} {\"Type\":>12s}')
 print('-' * 42)
@@ -299,20 +299,20 @@ for elem, count in sorted(top5_counts_layer5.items(), key=lambda x: -x[1])[:25]:
 donor_total = sum(v for k,v in top5_counts_layer5.items() if k in DONOR_SET)
 metal_total = sum(v for k,v in top5_counts_layer5.items() if k in METAL_SET)
 total_top5 = total * 5
-print(f'\\n配位原子: {donor_total:,}/{total_top5:,} = {100*donor_total/total_top5:.1f}%')
-print(f'金属原子: {metal_total:,}/{total_top5:,} = {100*metal_total/total_top5:.1f}%')
-print(f'有机元素: {total_top5-donor_total-metal_total:,}/{total_top5:,} = {100*(total_top5-donor_total-metal_total)/total_top5:.1f}%')
+print(f'\\nDonor atoms: {donor_total:,}/{total_top5:,} = {100*donor_total/total_top5:.1f}%')
+print(f'Metal atoms: {metal_total:,}/{total_top5:,} = {100*metal_total/total_top5:.1f}%')
+print(f'Organic elements: {total_top5-donor_total-metal_total:,}/{total_top5:,} = {100*(total_top5-donor_total-metal_total)/total_top5:.1f}%')
 
-# === 输出: 逐性质 ===
+# === output: per property ===
 print(f'\\n{\"=\"*70}')
-print('A2: 逐性质配位原子 Top-5 占比 (多任务GAT共享注意力, 各性质一致; per-property差异见B1-B2扰动归因)')
+print('A2: per-property donor-atom top-5 share (the multi-task GAT shares attention, so properties agree; see the B1-B2 perturbation attribution for per-property differences)')
 print(f'{\"=\"*70}')
 for prop in targets:
     d_total = sum(v for k,v in propwise_top5[prop].items() if k in DONOR_SET)
     print(f'{prop:18s}: {100*d_total/(total*5):.1f}%')
 
-# === 验证: 各层注意力是否真的不同 ===
-# 随机抽10个图, 比较相邻层注意力差异
+# === check: are the layers' attention weights really different? ===
+# randomly draw 10 graphs and compare the attention of adjacent layers
 sample_check = np.random.choice(len(xai_graphs), min(10, len(xai_graphs)), replace=False)
 layer_diffs = defaultdict(list)
 for idx in sample_check:
@@ -328,7 +328,7 @@ print(f'\\nAttention weight variation across layers (10-sample check):')
 for k, v in sorted(layer_diffs.items()):
     print(f'  {k}: mean_diff={np.mean(v):.6f} (0=identical, >0=different)')
 
-# === 直接验证: 各层donor fraction是否真的相同 ===
+# === direct check: is the donor fraction really identical across layers? ===
 layer_vals = [layerwise_donor_frac[i] for i in range(5)]
 for l in range(4):
     identical = all(abs(layer_vals[l][j] - layer_vals[l+1][j]) < 1e-6 for j in range(min(100, len(layer_vals[l]))))
@@ -337,15 +337,15 @@ for l in range(4):
         diffs = [abs(layer_vals[l][j] - layer_vals[l+1][j]) for j in range(min(100, len(layer_vals[l])))]
         print(f'    Mean diff (first 100): {np.mean(diffs):.6f}')
 
-# === 输出: 多层注意力演变 ===
+# === output: attention evolution across layers ===
 print(f'\\n{\"=\"*70}')
-print('A4: 多层注意力中 donor fraction 的演变')
+print('A4: evolution of the donor fraction across layers')
 print(f'{\"=\"*70}')
 for layer_idx in sorted(layerwise_donor_frac.keys()):
     vals = layerwise_donor_frac[layer_idx]
     print(f'  Layer {layer_idx+1}: mean={np.mean(vals)*100:.2f}%, std={np.std(vals)*100:.2f}%, median={np.median(vals)*100:.2f}%')
 
-# 保存注意力结果
+# save the attention results
 attn_results = {
     'top5_layer5': dict(top5_counts_layer5),
     'propwise': {k: dict(v) for k, v in propwise_top5.items()},
@@ -356,14 +356,14 @@ attn_results = {
 """, "xai_attention")
 
 # ============================================================
-# Cell 4: 扰动归因 — Signed Occlusion
+# Cell 4: perturbation attribution — Signed Occlusion
 # ============================================================
 add_code("""print('=' * 60)
 print('PART B: Perturbation Attribution — Signed Occlusion')
 print('=' * 60)
 
-# === 扰动归因: mask 每个原子, 测量每个性质的预测变化 ===
-# 出于计算效率, 在 2,000 个配合物上做全面扰动分析
+# === perturbation attribution: mask each atom and measure the prediction change per property ===
+# for computational efficiency, the full perturbation analysis is run on 2,000 complexes
 N_PERTURB = 2000
 perturb_idx = np.random.RandomState(123).choice(len(xai_graphs), N_PERTURB, replace=False)
 print(f'Perturbation on {N_PERTURB:,} complexes (full atom-level occlusion)...')
@@ -405,9 +405,9 @@ for ii in tqdm(range(len(perturb_idx)), desc='Perturbation'):
         total_abs = sum(abs(atom_attrs[j, prop_j]) for j in range(N))
         perturb_donor_frac[prop_name].append(donor_abs / (total_abs + 1e-8))
 
-# === 汇总 ===
+# === summary ===
 print(f'\\n{\"=\"*70}')
-print('B1: 扰动归因 — 原子类型平均绝对归因 (|Delta_prediction|)')
+print('B1: perturbation attribution — mean absolute attribution per atom type (|Delta_prediction|)')
 print(f'{\"=\"*70}')
 print(f'{\"Property\":16s} {\"Donor\":>10s} {\"Metal\":>10s} {\"Other\":>10s} {\"Donor%\":>8s}')
 print('-' * 58)
@@ -423,15 +423,15 @@ for prop in targets:
     print(f'{prop:16s} {d_mean:10.6f} {m_mean:10.6f} {o_mean:10.6f} {100*d_mean/total_mean:7.1f}%')
 
 print(f'\\n{\"=\"*70}')
-print('B2: 扰动归因 — Donor Fraction per Property (fraction of total absolute attribution)')
+print('B2: perturbation attribution — Donor Fraction per Property (fraction of total absolute attribution)')
 print(f'{\"=\"*70}')
 for prop in targets:
     vals = perturb_donor_frac[prop]
     print(f'{prop:16s}: mean={np.mean(vals)*100:.1f}%, std={np.std(vals)*100:.1f}%')
 
-# === 注意力 vs 扰动一致性 ===
+# === attention vs perturbation consistency ===
 print(f'\\n{\"=\"*70}')
-print('B3: 注意力 Top-5 vs 扰动 Top-5 一致性分析')
+print('B3: consistency analysis of attention top-5 vs perturbation top-5')
 print(f'{\"=\"*70}')
 
 overlap_rates = []
@@ -468,7 +468,7 @@ for ii in tqdm(range(len(perturb_idx)), desc='Consistency check'):
 print(f'Mean overlap (attention top-5 vs perturbation top-5): {np.mean(overlap_rates)*100:.1f}%')
 print(f'Std overlap: {np.std(overlap_rates)*100:.1f}%')
 
-# 保存
+# save
 perturb_summary = {
     'donor_abs_attribution': {prop: float(np.mean([abs(r['attribution']) for r in perturb_results[prop] if r['is_donor']])) for prop in targets},
     'perturb_donor_frac': {prop: float(np.mean(perturb_donor_frac[prop])) for prop in targets},
@@ -478,7 +478,7 @@ perturb_summary = {
 """, "xai_perturb")
 
 # ============================================================
-# Cell 5: 可视化
+# Cell 5: visualization
 # ============================================================
 add_code("""import matplotlib.pyplot as plt
 plt.rcParams['font.sans-serif'] = ['Noto Sans CJK SC', 'DejaVu Sans']
@@ -486,7 +486,7 @@ plt.rcParams['axes.unicode_minus'] = False
 
 fig, axes = plt.subplots(2, 3, figsize=(20, 13))
 
-# (a) 逐元素 Top-5 柱状图
+# (a) per-element top-5 bar chart
 ax = axes[0, 0]
 top25 = sorted(top5_counts_layer5.items(), key=lambda x: -x[1])[:25]
 elements = [e for e,_ in top25]; counts = [c for _,c in top25]
@@ -502,7 +502,7 @@ from matplotlib.patches import Patch
 ax.legend([Patch(color='#e74c3c'), Patch(color='#3498db'), Patch(color='#95a5a6')],
           ['Donor', 'Metal', 'Organic'], fontsize=8)
 
-# (b) 原子类型分布饼图
+# (b) atom-type distribution pie chart
 ax = axes[0, 1]
 ax.pie([donor_total, metal_total, total_top5-donor_total-metal_total],
     labels=[f'Donor\\n{donor_total:,} ({100*donor_total/total_top5:.1f}%)',
@@ -511,7 +511,7 @@ ax.pie([donor_total, metal_total, total_top5-donor_total-metal_total],
     autopct='%1.1f%%', colors=['#e74c3c','#3498db','#95a5a6'])
 ax.set_title(f'(b) Atom Type Distribution (N={total:,})')
 
-# (c) 逐性质配位原子占比
+# (c) donor-atom share per property
 ax = axes[0, 2]
 prop_donor_pcts = [100*sum(v for k,v in propwise_top5[p].items() if k in DONOR_SET)/(total*5) for p in targets]
 ax.barh(range(len(targets)), prop_donor_pcts, color='#e74c3c', edgecolor='white')
@@ -521,7 +521,7 @@ for i, v in enumerate(prop_donor_pcts):
     ax.text(v+0.5, i, f'{v:.1f}%', va='center', fontsize=8)
 ax.axvline(x=sum(prop_donor_pcts)/len(prop_donor_pcts), color='#3498db', linestyle='--', alpha=0.5)
 
-# (d) 多层注意力演变
+# (d) attention evolution across layers
 ax = axes[1, 0]
 layers = sorted([int(k) for k in layerwise_donor_frac.keys()])
 means = [100*np.mean(layerwise_donor_frac[l]) for l in layers]
@@ -531,7 +531,7 @@ ax.set_xlabel('GAT Layer'); ax.set_ylabel('Donor Atom Attention Fraction (%)')
 ax.set_title('(d) Donor Attention Evolution Across Layers')
 ax.set_xticks(layers); ax.grid(alpha=0.3)
 
-# (e) 扰动归因: donor fraction per property
+# (e) perturbation attribution: donor fraction per property
 ax = axes[1, 1]
 x = np.arange(len(targets))
 pert_donor_means = [100*np.mean(perturb_donor_frac[p]) for p in targets]
@@ -541,9 +541,9 @@ ax.set_xticks(x); ax.set_xticklabels(targets, fontsize=8, rotation=30)
 ax.set_ylabel('Donor Attribution Fraction (%)'); ax.set_title('(e) Perturbation: Donor Fraction per Property')
 ax.grid(axis='y', alpha=0.3)
 
-# (f) 注意力 vs 扰动对比
+# (f) attention vs perturbation comparison
 ax = axes[1, 2]
-# 逐性质比较
+# per-property comparison
 for prop_i, prop in enumerate(targets):
     attn_donor = 100*sum(v for k,v in propwise_top5[prop].items() if k in DONOR_SET)/(total*5)
     pert_donor = 100*np.mean(perturb_donor_frac[prop])
@@ -556,7 +556,7 @@ ax.set_title('(f) Attention vs Perturbation Agreement'); ax.legend(ncol=2, fonts
 plt.suptitle(f'SMILES GAT Attention XAI — Rigorous Analysis (N={total:,} complexes)', fontsize=16, fontweight='bold', y=1.01)
 plt.tight_layout(); plt.show()
 
-# === 最终汇总 ===
+# === final summary ===
 print(f'\\n{\"=\"*60}')
 print('XAI ANALYSIS SUMMARY')
 print(f'{\"=\"*60}')
@@ -568,28 +568,28 @@ print(f'Layer 1→5 donor evolution: {means[0]:.1f}% → {means[-1]:.1f}%')
 """, "xai_viz")
 
 # ============================================================
-# Cell 6: 讨论
+# Cell 6: discussion
 # ============================================================
-add_md("""## XAI 分析结论
+add_md("""## XAI analysis conclusions
 
-### 核心发现
+### Key findings
 
-1. **配位原子在注意力中占比稳定 (~21% top-5)**, 远高于其原子数占比 (<10%), 验证了配体场理论
-2. **多任务GAT共享注意力权重** — 所有8个性质使用同一套GAT编码器, 注意力分布一致。逐性质差异需通过扰动归因 (B1-B2) 获取
-3. **扰动归因揭示了性质特异性**: homo/lumo 的 donor 归因约 30-40%, 而 E_elec 仅 5.7% (金属主导)。这与化学直觉完全一致
-4. **碳原子高注意力不代表高因果贡献** — 它们作为信息中继站, 扰动归因中碳的贡献远小于金属和配位原子
-5. **注意力 vs 扰动互补**: 注意力追踪信息流 (GNN 内部通讯), 扰动追踪因果影响 (输入→输出链路), 两者重叠率 ~18% 反映了两种方法测量不同维度
+1. **The donor-atom share of the attention is stable (~21% top-5)**, far above its share of the atom count (<10%), confirming ligand field theory
+2. **The multi-task GAT shares attention weights** — all 8 properties use the same GAT encoder, so the attention distribution is identical. Per-property differences must be obtained through perturbation attribution (B1-B2)
+3. **Perturbation attribution reveals property specificity**: the donor attribution for homo/lumo is about 30-40%, whereas E_elec is only 5.7% (metal-dominated). This agrees completely with chemical intuition
+4. **High attention on carbon atoms does not mean a high causal contribution** — they act as information relay stations, and in perturbation attribution carbon's contribution is far smaller than that of the metal and the donor atoms
+5. **Attention and perturbation are complementary**: attention tracks the information flow (internal GNN communication) while perturbation tracks the causal influence (input→output pathway); their overlap rate of ~18% reflects that the two methods measure different dimensions
 
-### 统计严谨性
+### Statistical rigour
 
-- N=20,000 (vs 常见分析的 500-1,000)
-- 按元素、性质、金属类型分层统计
-- 所有比例附带标准差
-- 双方法交叉验证归因可靠性
+- N=20,000 (vs 500-1,000 in typical analyses)
+- statistics stratified by element, property and metal type
+- all proportions reported with standard deviations
+- two-method cross-validation of attribution reliability
 """, "xai_discussion")
 
 # ============================================================
-# 写入
+# write out
 # ============================================================
 nb = {"nbformat": 4, "nbformat_minor": 5,
       "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}},

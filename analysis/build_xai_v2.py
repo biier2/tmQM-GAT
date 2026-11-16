@@ -11,7 +11,7 @@ def add_code(src, cid):
                   "source": [l + '\n' for l in src.split('\n')], "id": cid})
 
 # Cell 1: Intro
-add_md("# GAT 注意力 XAI 分析\n\n提取 XYZ GNN 各层 GAT 注意力权重，分析哪些原子驱动预测。\n与 tmGNN-XAI 的配位原子主导发现对标。", "eq_intro")
+add_md("# GAT attention XAI analysis\n\nExtract the GAT attention weights of each layer in the XYZ GNN and analyse which atoms drive the predictions.\nBenchmarked against the tmGNN-XAI finding that donor atoms dominate.", "eq_intro")
 
 # Cell 2: Load minimal data (SMILES only, no XYZ parsing needed)
 add_code("import numpy as np, pandas as pd, time, json, os\nimport torch, torch.nn as nn\nfrom collections import Counter, defaultdict\nimport warnings; warnings.filterwarnings('ignore')\ndevice = torch.device('cuda' if torch.cuda.is_available() else 'cpu')\nprint(f'Device: {device}')\nfrom rdkit import Chem; from rdkit import RDLogger; RDLogger.logger().setLevel(RDLogger.ERROR)\nfrom tqdm import tqdm\n\ndf_y = pd.read_csv('data_tmQM/local_vB/tmQM_y.csv', sep=';')\ndf_y = df_y.rename(columns={'HL_Gap':'gap','HOMO_Energy':'homo','LUMO_Energy':'lumo','Dipole_M':'dipole','Metal_q':'metal_charge','Electronic_E':'E_elec','Dispersion_E':'E_disp','Polarizability':'polarizability'})\nsmiles_by_idx = df_y['SMILES'].tolist()\nprint(f'Loaded {len(df_y)} SMILES strings')", "eq_load")
@@ -102,7 +102,7 @@ model.eval()"""
 add_code(cell3_src, "eq_model")
 
 # Cell 4: Build XAI graphs
-cell4_src = """# 从SMILES构建图 (XAI只需图拓扑)
+cell4_src = """# build graphs from SMILES (XAI only needs the graph topology)
 ELEMENT_DATA = {1:(1,1),5:(2,13),6:(2,14),7:(2,15),8:(2,16),9:(2,17),14:(3,14),15:(3,15),16:(3,16),17:(3,17),20:(4,2),21:(4,3),22:(4,4),23:(4,5),24:(4,6),25:(4,7),26:(4,8),27:(4,9),28:(4,10),29:(4,11),30:(4,12),35:(4,17),42:(5,6),44:(5,8),45:(5,9),46:(5,10),47:(5,11),48:(5,12),53:(5,17),72:(6,4),73:(6,5),74:(6,6),75:(6,7),76:(6,8),77:(6,9),78:(6,10),79:(6,11),80:(6,12)}
 BOND_TYPES=[1,2,3,12]; B2I={b:i for i,b in enumerate(BOND_TYPES)}; N_BT=4
 rbf_c=np.linspace(1.0,5.0,16)
@@ -149,7 +149,7 @@ print(f'Built {len(xai_graphs)} XAI graphs')"""
 add_code(cell4_src, "eq_graphs")
 
 # Cell 5: Extract attention
-cell5_src = """# 提取注意力权重并分析
+cell5_src = """# extract attention weights and analyse
 print('Extracting attention...')
 DONOR_SET = {'N','O','S','P','Cl','Br','I'}
 METAL_SET = {'Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ru','Rh','Pd','Ag','Cd','Pt','Au','Hg','Mo','W','Ir','Os','Re'}
@@ -157,7 +157,7 @@ METAL_SET = {'Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ru','Rh','Pd','Ag
 top5_counts = defaultdict(int)
 total = 0
 
-for i in tqdm(range(len(xai_graphs)), desc='分析中'):
+for i in tqdm(range(len(xai_graphs)), desc='analysing'):
     g = xai_graphs[i]; sym = xai_symbols[i]
     g_gpu = {k: v.to(device) for k, v in g.items() if isinstance(v, torch.Tensor)}
     with torch.no_grad():
@@ -172,7 +172,7 @@ for i in tqdm(range(len(xai_graphs)), desc='分析中'):
     total += 1
 
 print(f'\\nAnalyzed {total} complexes')
-print(f'\\n元素Top-5出现频率:')
+print(f'\\nElement top-5 appearance frequency:')
 print(f'{\"Element\":10s} {\"Count\":>8s} {\"%\":>8s} {\"Type\":>12s}')
 print('-' * 42)
 for elem, count in sorted(top5_counts.items(), key=lambda x: -x[1])[:20]:
@@ -185,9 +185,9 @@ for elem, count in sorted(top5_counts.items(), key=lambda x: -x[1])[:20]:
 donor_total = sum(v for k,v in top5_counts.items() if k in DONOR_SET)
 metal_total = sum(v for k,v in top5_counts.items() if k in METAL_SET)
 total_top5 = total * 5
-print(f'\\n配位原子: {donor_total}/{total_top5} = {100*donor_total/total_top5:.1f}%')
-print(f'金属原子: {metal_total}/{total_top5} = {100*metal_total/total_top5:.1f}%')
-print(f'其他: {total_top5-donor_total-metal_total}/{total_top5} = {100*(total_top5-donor_total-metal_total)/total_top5:.1f}%')"""
+print(f'\\nDonor atoms: {donor_total}/{total_top5} = {100*donor_total/total_top5:.1f}%')
+print(f'Metal atoms: {metal_total}/{total_top5} = {100*metal_total/total_top5:.1f}%')
+print(f'Other: {total_top5-donor_total-metal_total}/{total_top5} = {100*(total_top5-donor_total-metal_total)/total_top5:.1f}%')"""
 
 add_code(cell5_src, "eq_xai")
 
@@ -202,19 +202,19 @@ elements = [e for e,_ in top20]; counts = [c for _,c in top20]
 colors = ['#e74c3c' if e in DONOR_SET else '#3498db' if e in METAL_SET else '#95a5a6' for e in elements]
 axes[0].bar(range(len(elements)), counts, color=colors)
 axes[0].set_xticks(range(len(elements))); axes[0].set_xticklabels(elements, fontsize=9)
-axes[0].set_ylabel('Top-5出现次数'); axes[0].set_title('GAT注意力Top-20原子')
+axes[0].set_ylabel('Top-5 appearance count'); axes[0].set_title('GAT attention: top-20 atoms')
 from matplotlib.patches import Rectangle
-axes[0].legend([Rectangle((0,0),1,1,color='#e74c3c'), Rectangle((0,0),1,1,color='#3498db'), Rectangle((0,0),1,1,color='#95a5a6')], ['配位原子', 'Metal', '有机'], fontsize=8)
+axes[0].legend([Rectangle((0,0),1,1,color='#e74c3c'), Rectangle((0,0),1,1,color='#3498db'), Rectangle((0,0),1,1,color='#95a5a6')], ['Donor atoms', 'Metal', 'Organic'], fontsize=8)
 
 axes[1].pie([donor_total, metal_total, total_top5-donor_total-metal_total],
     labels=[f'Donor\\n{donor_total} ({100*donor_total/total_top5:.1f}%)', f'Metal\\n{metal_total}', f'Other'],
     autopct='%1.1f%%', colors=['#e74c3c','#3498db','#95a5a6'])
-axes[1].set_title(f'Top-5原子类型分布 ({total} complexes)')
-plt.suptitle('GAT注意力XAI: 哪些原子驱动了预测?', fontsize=14, y=1.02)
+axes[1].set_title(f'Top-5 atom type distribution ({total} complexes)')
+plt.suptitle('GAT attention XAI: which atoms drive the predictions?', fontsize=14, y=1.02)
 plt.tight_layout(); plt.show()
 
-print(f'\\nKey finding: 配位原子 appear in {100*donor_total/total_top5:.1f}% of top-5 attentions')
-print('这是配体场理论的大规模数据验证')"""
+print(f'\\nKey finding: donor atoms appear in {100*donor_total/total_top5:.1f}% of top-5 attentions')
+print('This is a large-scale data validation of ligand field theory')"""
 
 add_code(cell6_src, "eq_viz")
 
