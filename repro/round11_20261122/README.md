@@ -51,9 +51,26 @@ python merge_eval_q.py --ckpt-a ensemble_checkpoint_DimeNetQ.pt \
 ```
 
 Members trained in separate directories can be merged by passing the second
-checkpoint with `--ckpt-b`. The three `dimenetpp_q_seed*_best.pt` checkpoints are
-not stored in the repository; they can be added to the `v1.0-review` release on
-request.
+checkpoint with `--ckpt-b`. The three trained members are stored under
+`checkpoints/`, so the comparison can be reproduced without retraining:
+
+| File | Bytes | md5 | Members |
+|---|---:|---|---|
+| `checkpoints/dimenetq_fold0_seeds42_456.pt` | 15,273,063 | `70a04331821999f8ad7ffb805dd54d2c` | fold 0, seeds 42 and 456 |
+| `checkpoints/dimenetq_fold0_seed123.pt` | 7,637,874 | `dd429225e1bc2674a4c4c71ec3f07051` | fold 0, seed 123 |
+
+Each file is the ensemble checkpoint written by `dimenetpp_q_train.py`
+(`{'models': [{'state', 'y_mean', 'y_std', 'fold', 'seed'}, ...], 'log': [...]}`),
+holding the best-validation state of each member. Evaluation still needs
+`new_domain_iso.pt`, `schnet_domain_coords.npz` and `fixed_q.npz` in the working
+directory, because the test geometries and labels are not redistributed here:
+
+```bash
+python merge_eval_q.py \
+    --ckpt-a checkpoints/dimenetq_fold0_seeds42_456.pt \
+    --ckpt-b checkpoints/dimenetq_fold0_seed123.pt \
+    --base-preds ../../preds/test_preds_DimeNet.npz
+```
 
 Key numbers (three-member ensembles, identical 13,557-complex test split):
 
