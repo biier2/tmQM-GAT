@@ -1,0 +1,37 @@
+[
+ {
+  "complex": "XORQUT_35.xyz",
+  "atoms": 35,
+  "default_s": 0.17233049999776995,
+  "one_thread_s": 0.08697010000469163,
+  "wbo_parse_ms": 0.07869999899412505
+ },
+ {
+  "complex": "MICSAW_46.xyz",
+  "atoms": 46,
+  "default_s": 0.13822040000377456,
+  "one_thread_s": 0.09504949999973178,
+  "wbo_parse_ms": 0.08504999641445465
+ },
+ {
+  "complex": "YACPAX_62.xyz",
+  "atoms": 62,
+  "default_s": 0.14504149999993388,
+  "one_thread_s": 0.10435159999906318,
+  "wbo_parse_ms": 0.09950000094249845
+ },
+ {
+  "complex": "XEBXUB_80.xyz",
+  "atoms": 80,
+  "default_s": 0.20671710000169696,
+  "one_thread_s": 0.17183210000075633,
+  "wbo_parse_ms": 0.11115000233985484
+ },
+ {
+  "complex": "SICRIJ_99.xyz",
+  "atoms": 99,
+  "default_s": 0.27219550000154413,
+  "one_thread_s": 0.22736199999781093,
+  "wbo_parse_ms": 0.14494999777525663
+ }
+]
