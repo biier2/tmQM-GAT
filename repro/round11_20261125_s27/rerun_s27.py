@@ -28,7 +28,7 @@ from sklearn.metrics import r2_score
 from tqdm import tqdm
 from rdkit import Chem; from rdkit import RDLogger; RDLogger.logger().setLevel(RDLogger.ERROR)
 
-# ===== 数据加载 (复用tmQM_Fe_XYZ的Cell 2-5逻辑) =====
+# ===== Data loading (same logic as cells 2-5 of the original tmQM_Fe_XYZ notebook) =====
 df_y = pd.read_csv('tmQM_y.csv', sep=';')
 df_y = df_y.rename(columns={'HL_Gap':'gap','HOMO_Energy':'homo','LUMO_Energy':'lumo',
     'Dipole_M':'dipole','Metal_q':'metal_charge','Electronic_E':'E_elec',
@@ -125,12 +125,12 @@ def fast_match(sm_atoms, xyz_atoms):
 
 rbf_c=np.linspace(1.0,5.0,16); rbf_sigma=0.2
 smiles_by_idx=df_y['SMILES'].tolist()
-# === OOM防护: 30k采样 (95k全量会触发cgroup内存限制) ===
+# === OOM guard: 30k subsample (the full 95k domain exceeds the cgroup memory limit) ===
 N_SAMPLE = 30000
 rng = np.random.RandomState(42)
 perm = rng.permutation(len(fe_cmplx))[:N_SAMPLE]
 fe_cmplx = [fe_cmplx[i] for i in perm]
-y_fe = y_fe[perm]  # 同步采样 — 图和目标值对齐!
+y_fe = y_fe[perm]  # same permutation, so graphs and targets stay aligned
 is_Fe = np.array(is_Fe, dtype=np.float32)[perm].tolist()
 print(f'Building graphs (sampled {N_SAMPLE:,} complexes for memory safety)...')
 graphs, y_vals, is_Fe_filt, atoms_filt, failed = [], [], [], [], 0
@@ -286,7 +286,7 @@ class AblationXYZ(nn.Module):
 # === GPU preload (once) ===
 graphs_gpu_local = [{k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in g.items()} for g in graphs]
 
-# === BASELINE CACHE: 同配置同seed只训练一次 ===
+# === BASELINE CACHE: a given (config, seed) is trained only once ===
 # key = (heads, use_metal_pool, use_inv_freq_weight, edge_dim, node_dim, seed)
 _TRAIN_CACHE = {}
 

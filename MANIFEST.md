@@ -363,7 +363,7 @@ Generated 2026-11-22; 444 files (this file excluded).
 | 356 | `repro/round11_20261122/xtb_timing/xtb_timing.json` | 827 | `94b4c7ad367d4122de1268d1a052d3a0` |
 | 357 | `repro/round11_20261125_s27/README.md` | 3479 | `a97219dbc2b9f22ed1ea26d67625f057` |
 | 358 | `repro/round11_20261125_s27/analyze_s27.py` | 2143 | `f5bdc301a65c4be282552eb2159d5fd2` |
-| 359 | `repro/round11_20261125_s27/rerun_s27.py` | 21897 | `2a7aefe243dfd58530161c699baa27e5` |
+| 359 | `repro/round11_20261125_s27/rerun_s27.py` | 21967 | `16e5fe47750fbdce7c06396878f079f4` |
 | 360 | `repro/round11_20261125_s27/s27_rerun_results.json` | 6846 | `b98c868cc2b0a506306df208dd09ee07` |
 | 361 | `repro/round8_recon_20261015/case_mae_recalc.py` | 4150 | `8cc5bc55a985ff286b165f9b2a7fb3c0` |
 | 362 | `repro/round8_recon_20261015/check_s2_members.py` | 1716 | `2e0c56f5700030d7d343a05f3a93175b` |
