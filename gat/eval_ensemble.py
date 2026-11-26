@@ -61,7 +61,7 @@ def parse_one(xyz_p, bo_p, start_idx=0):
             if cur: bo_blocks.append(cur); cur = []
         elif line: cur.append(line)
     if cur: bo_blocks.append(cur)
-    i, mol_idx = 0, start_idx - 1
+    i, mol_idx, n_blocks = 0, start_idx - 1, 0
     while i < len(xyz_blocks):
         line = xyz_blocks[i].strip(); i += 1
         if not line: continue
@@ -78,7 +78,7 @@ def parse_one(xyz_p, bo_p, start_idx=0):
                         z = atom_to_z(cparts[0])
                         coords.append([float(x) for x in cparts[1:4]]); atoms.append(z)
                     except ValueError: continue
-            mol_idx += 1
+            mol_idx += 1; n_blocks += 1
             if not any(is_TM(z) for z in atoms) or len(atoms) <= 1: continue
             bo_mat = None
             if mol_idx < len(bo_blocks):
@@ -98,12 +98,16 @@ def parse_one(xyz_p, bo_p, start_idx=0):
             mols.append({"atoms": np.array(atoms), "coords": np.array(coords, dtype=np.float32),
                          "bo": bo_mat, "csv_idx": mol_idx})
             labels.append(df_y.iloc[mol_idx][targets].astype(float).values)
-    return mols, labels
+    return mols, labels, n_blocks
 
 print('Parsing XYZ+BO files...')
 all_m, all_l = [], []
+_n_blk = 0
 for part in [1, 2, 3]:
-    m, l = parse_one(f"data_tmQM/local_vB/tmQM_X{part}.xyz.gz", f"data_tmQM/local_vB/tmQM_X{part}.BO.gz", start_idx=len(all_m))
+    # start_idx must be the cumulative number of XYZ BLOCKS (see
+    # repro/round11_20261125_s27/README.md).
+    m, l, _nb = parse_one(f"data_tmQM/local_vB/tmQM_X{part}.xyz.gz", f"data_tmQM/local_vB/tmQM_X{part}.BO.gz", start_idx=_n_blk)
+    _n_blk += _nb
     all_m.extend(m); all_l.extend(l)
     print(f'  Part {part}: {len(m)}')
 
